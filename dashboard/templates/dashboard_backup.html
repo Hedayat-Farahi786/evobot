@@ -1,0 +1,4250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvoBot - Trading Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyClrXVHM5xP4FqZKsjaqN7VEXAsGwNeax4",
+            authDomain: "evobot-8.firebaseapp.com",
+            databaseURL: "https://evobot-8-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "evobot-8",
+            storageBucket: "evobot-8.firebasestorage.app",
+            messagingSenderId: "349123654411",
+            appId: "1:349123654411:web:afc01b90aa06984c74e80e",
+            measurementId: "G-Q1BRXP7KRE"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        window.firebaseDB = getDatabase(app);
+        window.firebaseRef = ref;
+        window.firebaseOnValue = onValue;
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg: #ffffff;
+            --bg-secondary: #fafafa;
+            --bg-hover: #f4f4f5;
+            --border: #e4e4e7;
+            --border-light: #f4f4f5;
+            --text: #09090b;
+            --text-secondary: #71717a;
+            --text-muted: #a1a1aa;
+            --accent: #18181b;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --radius: 8px;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+        
+        /* Main Layout - Single View */
+        .app {
+            display: grid;
+            grid-template-rows: 56px 1fr;
+            height: 100vh;
+            margin-left: 260px;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .app.navbar-collapsed {
+            margin-left: 68px;
+        }
+        
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+            position: relative;
+        }
+        
+        .header-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            flex: 1;
+        }
+        
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+        
+        .status-pill:hover {
+            background: var(--bg-hover);
+        }
+        
+        .uptime-pill {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+        
+        .uptime-pill .uptime-value {
+            font-variant-numeric: tabular-nums;
+            min-width: 50px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+        
+        .status-dot.active {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+            animation: pulse-dot 2s infinite;
+        }
+        
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 8px var(--success); }
+            50% { box-shadow: 0 0 12px var(--success), 0 0 20px rgba(34, 197, 94, 0.3); }
+        }
+        
+        .status-dot.error {
+            background: var(--danger);
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            cursor: pointer;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(255,255,255,0.3) 0%, transparent 70%);
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.4s ease;
+        }
+        
+        .btn:hover:not(:disabled) {
+            background: var(--bg-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+        }
+        
+        .btn:active:not(:disabled) {
+            transform: translateY(1px) scale(0.97);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
+            transition: all 0.05s ease;
+        }
+        
+        .btn:active:not(:disabled)::before {
+            opacity: 1;
+            transform: scale(2.5);
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #27272a;
+            border-color: #27272a;
+        }
+        
+        .btn-primary:active:not(:disabled) {
+            background: #1f1f23;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+            border-color: #dc2626;
+        }
+        
+        .btn-danger:active:not(:disabled) {
+            background: #b91c1c;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            background: #16a34a;
+            border-color: #16a34a;
+        }
+        
+        .btn-running {
+            cursor: default;
+            animation: pulse-success 2s infinite;
+        }
+        
+        @keyframes pulse-success {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+        }
+        
+        .btn-starting {
+            animation: pulse-loading 1s infinite;
+        }
+        
+        @keyframes pulse-loading {
+            0%, 100% { opacity: 0.85; }
+            50% { opacity: 1; }
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn.loading {
+            pointer-events: none;
+            opacity: 0.85;
+        }
+        
+        .btn-close {
+            padding: 4px 10px;
+            font-size: 11px;
+        }
+        
+        /* Confirmation Modal */
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .confirm-modal {
+            background: var(--bg);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+            padding: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: modalIn 0.2s ease;
+        }
+        
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        
+        .confirm-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+        
+        .confirm-icon.start {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+        }
+        
+        .confirm-icon.stop {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+        
+        .confirm-title {
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        
+        .confirm-message {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        
+        .confirm-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .confirm-actions .btn {
+            flex: 1;
+            justify-content: center;
+            padding: 12px 16px;
+        }
+        
+        /* Inline Edit Styles */
+        .inline-edit-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-light);
+            transition: all 0.15s ease;
+            pointer-events: auto;
+        }
+        
+        .inline-edit-row:last-child {
+            border-bottom: none;
+        }
+        
+        .inline-edit-row:hover {
+            background: rgba(0,0,0,0.02);
+            margin: 0 -8px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        .inline-edit-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+        
+        .inline-edit-value {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .inline-edit-value span {
+            font-size: 13px;
+            font-weight: 500;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .inline-edit-value .masked {
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+        }
+        
+        .edit-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            opacity: 0.5;
+            pointer-events: auto;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .inline-edit-row:hover .edit-btn {
+            opacity: 1;
+        }
+        
+        .edit-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text);
+            opacity: 1;
+        }
+        
+        .inline-edit-input {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            max-width: 180px;
+        }
+        
+        .inline-edit-input input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: inherit;
+            background: var(--bg);
+            color: var(--text);
+            min-width: 0;
+        }
+        
+        .inline-edit-input input:focus {
+            outline: none;
+            border-color: var(--success);
+            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+        }
+        
+        .inline-edit-input input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .confirm-btn, .cancel-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            pointer-events: auto;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .confirm-btn {
+            background: var(--success);
+            color: white;
+        }
+        
+        .confirm-btn:hover {
+            background: #16a34a;
+        }
+        
+        .cancel-btn {
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+        }
+        
+        .cancel-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+        
+        /* Channel Management Styles */
+        .channel-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .channel-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            font-size: 12px;
+            transition: all 0.15s ease;
+        }
+        
+        .channel-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+        
+        .channel-item .channel-name {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text);
+            font-size: 11px;
+        }
+        
+        .channel-item .remove-btn {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            opacity: 0;
+            transition: all 0.15s ease;
+            pointer-events: auto;
+        }
+        
+        .channel-item:hover .remove-btn {
+            opacity: 1;
+        }
+        
+        .channel-item .remove-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .add-channel-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        
+        .add-channel-row input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 12px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .add-channel-row input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .add-channel-row input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .add-channel-row .add-btn {
+            padding: 6px 12px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            pointer-events: auto;
+        }
+        
+        .add-channel-row .add-btn:hover {
+            background: var(--text);
+        }
+        
+        .add-channel-row .add-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .channel-section-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin: 12px 0 6px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .channel-section-label:first-child {
+            margin-top: 0;
+        }
+        
+        /* Sidebar Settings Section */
+        .sidebar-settings-section {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .sidebar-settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 8px 10px;
+            margin-bottom: 0;
+            background: var(--bg-hover);
+            border-radius: 6px;
+            transition: all 0.15s ease;
+            user-select: none;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .sidebar-settings-header:hover {
+            background: var(--border);
+        }
+        
+        .sidebar-settings-header:active {
+            background: var(--border-light);
+            transform: scale(0.99);
+        }
+        
+        .sidebar-settings-header:hover .sidebar-title {
+            color: var(--text);
+        }
+        
+        .sidebar-settings-header .sidebar-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 0;
+            transition: color 0.15s ease;
+            pointer-events: none;
+        }
+        
+        .sidebar-settings-header > div {
+            pointer-events: none;
+        }
+        
+        .collapse-icon {
+            transition: transform 0.25s ease;
+            pointer-events: none;
+        }
+        
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+        
+        .sidebar-settings-content {
+            overflow: hidden;
+            transition: max-height 0.35s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out;
+            padding-top: 10px;
+            pointer-events: auto;
+            max-height: 0;
+            opacity: 0;
+        }
+        
+        .sidebar-settings-content.collapsed {
+            max-height: 0 !important;
+            opacity: 0;
+            padding-top: 0;
+        }
+        
+        .sidebar-settings-content.expanded-telegram {
+            max-height: 400px;
+            opacity: 1;
+        }
+        
+        .sidebar-settings-content.expanded-broker {
+            max-height: 300px;
+            opacity: 1;
+        }
+        
+        .sidebar-settings-content.expanded-trading {
+            max-height: 300px;
+            opacity: 1;
+        }
+        
+        .sidebar-settings-content.expanded-channels {
+            max-height: 500px;
+            opacity: 1;
+        }
+        
+        /* Status indicator for settings */
+        .settings-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        
+        .settings-status.configured {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
+        }
+        
+        .settings-status.missing {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+        
+        /* Connection Progress */
+        .connection-progress {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+        }
+        
+        .progress-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .progress-icon.pending {
+            background: var(--bg-hover);
+            color: var(--text-muted);
+        }
+        
+        .progress-icon.loading {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+        }
+        
+        .progress-icon.success {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+        }
+        
+        .progress-icon.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+        
+        .progress-spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        
+        /* Sidebar expanded width */
+        .sidebar {
+            width: 340px;
+        }
+        
+        /* Main Content */
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            overflow: hidden;
+        }
+        
+        /* Center Content */
+        .content {
+            display: flex;
+            flex-direction: column;
+            padding: 20px 24px;
+            gap: 16px;
+            overflow: hidden;
+        }
+        
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+        }
+        
+        .stat-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        
+        .stat-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .stat-card.loading .stat-value,
+        .stat-card.loading .stat-sub {
+            color: transparent;
+            background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-hover) 50%, var(--bg-secondary) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .stat-value.positive { color: var(--success); }
+        .stat-value.negative { color: var(--danger); }
+        
+        .stat-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        
+        /* Trades Table */
+        .trades-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            min-height: 0;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .badge {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+        }
+        
+        .table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        th {
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-light);
+            font-variant-numeric: tabular-nums;
+        }
+        
+        tr:hover td {
+            background: var(--bg-secondary);
+        }
+        
+        .symbol-cell {
+            font-weight: 600;
+        }
+        
+        .direction-buy {
+            color: var(--success);
+            font-weight: 600;
+        }
+        
+        .direction-sell {
+            color: var(--danger);
+            font-weight: 600;
+        }
+        
+        .profit-positive {
+            color: var(--success);
+            font-weight: 600;
+        }
+        
+        .profit-negative {
+            color: var(--danger);
+            font-weight: 600;
+        }
+        
+        .btn-close {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+        
+        .empty-state i {
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            overflow-y: auto;
+        }
+        
+        .sidebar-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        
+        /* Connection Status Grid */
+        .connection-status-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .connection-status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .connection-status-indicator {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+        
+        .connection-status-indicator.connected {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: var(--success);
+        }
+        
+        .connection-status-indicator.connecting {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: #3b82f6;
+        }
+        
+        .connection-status-indicator.warning,
+        .connection-status-indicator.failed {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: var(--danger);
+        }
+        
+        .connection-status-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .connection-status-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .connection-status-value {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .connection-status-value.connected {
+            color: var(--success);
+        }
+        
+        .connection-status-value.warning,
+        .connection-status-value.failed {
+            color: var(--danger);
+        }
+        
+        .progress-spinner-small {
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        /* Retry Connection Button */
+        .btn-retry {
+            width: 100%;
+            margin-top: 12px;
+            justify-content: center;
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: #b45309;
+        }
+        
+        .btn-retry:hover:not(:disabled) {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: rgba(245, 158, 11, 0.5);
+        }
+        
+        .btn-retry:active:not(:disabled) {
+            background: rgba(245, 158, 11, 0.3);
+        }
+        
+        /* Account Info */
+        .account-info {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .account-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .account-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .account-value {
+            font-size: 13px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        /* Activity Feed */
+        .activity-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+        
+        .activity-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 16px;
+        }
+        
+        .activity-item {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        
+        .activity-icon.success {
+            background: #dcfce7;
+            border-color: #bbf7d0;
+            color: var(--success);
+        }
+        
+        .activity-icon.danger {
+            background: #fee2e2;
+            border-color: #fecaca;
+            color: var(--danger);
+        }
+        
+        .activity-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .activity-title {
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .activity-time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        /* Notifications */
+        .notifications {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 3000;
+            max-width: 380px;
+            pointer-events: none;
+        }
+        
+        .notification {
+            pointer-events: auto;
+        }
+        
+        .notification {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 18px;
+            background: var(--bg);
+            color: var(--text);
+            border-radius: var(--radius);
+            font-size: 13px;
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .notification .notif-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .notification .notif-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .notification .notif-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .notification .notif-message {
+            color: var(--text-muted);
+            word-break: break-word;
+        }
+        
+        .notification.success .notif-icon {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+        }
+        
+        .notification.error .notif-icon {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+        
+        .notification.info .notif-icon {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+        }
+        
+        .notification.warning .notif-icon {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+        
+        .notification .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            margin: -4px -4px -4px 0;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+        
+        .notification .close-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text);
+        }
+        
+        @keyframes slideIn {
+            from { 
+                transform: translateX(100%); 
+                opacity: 0; 
+            }
+            to { 
+                transform: translateX(0); 
+                opacity: 1; 
+            }
+        }
+        
+        @keyframes slideOut {
+            from { 
+                transform: translateX(0); 
+                opacity: 1; 
+            }
+            to { 
+                transform: translateX(100%); 
+                opacity: 0; 
+            }
+        }
+        
+        .notification.removing {
+            animation: slideOut 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        
+        /* Spinner */
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        
+        .spinner-dark {
+            border: 2px solid rgba(0,0,0,0.1);
+            border-top-color: var(--text);
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-hover) 50%, var(--bg-secondary) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: var(--radius);
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .skeleton-text {
+            height: 14px;
+            width: 100%;
+        }
+        
+        .skeleton-value {
+            height: 28px;
+            width: 70%;
+        }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .loading-spinner-lg {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        /* Fade transitions */
+        .fade-enter-active,
+        .fade-leave-active {
+            transition: opacity 0.2s ease;
+        }
+        
+        .fade-enter-from,
+        .fade-leave-to {
+            opacity: 0;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .stats-row {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+            
+            /* Hide navbar on mobile, show hamburger instead */
+            .left-navbar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            
+            .left-navbar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            .app {
+                margin-left: 0;
+            }
+        }
+        
+        /* Price Animation */
+        .price-up {
+            animation: flashGreen 0.5s;
+        }
+        
+        .price-down {
+            animation: flashRed 0.5s;
+        }
+        
+        @keyframes flashGreen {
+            0% { background: rgba(34, 197, 94, 0.2); }
+            100% { background: transparent; }
+        }
+        
+        @keyframes flashRed {
+            0% { background: rgba(239, 68, 68, 0.2); }
+            100% { background: transparent; }
+        }
+        
+        /* Smooth transitions for all interactive elements */
+        .status-pill {
+            transition: all 0.2s ease;
+        }
+        
+        .status-pill:hover {
+            background: var(--bg-hover);
+        }
+        
+        .sidebar-section {
+            transition: all 0.2s ease;
+        }
+        
+        .activity-item {
+            transition: all 0.15s ease;
+        }
+        
+        .activity-item:hover {
+            background: var(--bg-hover);
+            transform: translateX(2px);
+        }
+        
+        /* Table row hover */
+        tbody tr {
+            transition: all 0.15s ease;
+        }
+        
+        tbody tr:hover {
+            background: var(--bg-hover);
+        }
+        
+        /* Badge pulse animation for new items */
+        .badge {
+            transition: all 0.2s ease;
+        }
+        
+        .badge.pulse {
+            animation: badgePulse 0.5s ease;
+        }
+        
+        @keyframes badgePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        /* Spin animation for refresh icon */
+        .spin-animation {
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Empty state animation */
+        .empty-state {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+        
+        /* Trade Action Buttons */
+        .trade-actions {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .btn-action {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .btn-action:hover {
+            background: var(--bg-hover);
+        }
+        
+        .btn-action.btn-modify {
+            color: var(--text);
+        }
+        
+        .btn-action.btn-close-trade {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: white;
+        }
+        
+        .btn-action.btn-close-trade:hover {
+            background: #dc2626;
+        }
+        
+        /* ===== LEFT SIDEBAR / NAVBAR ===== */
+        .left-navbar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 260px;
+            background: var(--bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: visible;
+        }
+        
+        .left-navbar.collapsed {
+            width: 68px;
+            overflow: visible;
+        }
+        
+        .left-navbar.collapsed .nav-text,
+        .left-navbar.collapsed .nav-section-title,
+        .left-navbar.collapsed .user-info,
+        .left-navbar.collapsed .logo-text {
+            display: none !important;
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            transition: opacity 0.2s ease, width 0.3s ease;
+        }
+        
+        .left-navbar.collapsed .navbar-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 8px;
+            position: relative;
+            height: 64px;
+        }
+        
+        .left-navbar.collapsed .navbar-logo {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .left-navbar.collapsed .navbar-logo .logo-text {
+            display: none;
+        }
+        
+        .left-navbar.collapsed .collapse-btn {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            top: 50%;
+            right: -14px;
+            transform: translateY(-50%);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            z-index: 200;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .left-navbar.collapsed .nav-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            margin: 2px 12px;
+            gap: 0 !important;
+            position: relative;
+            width: calc(68px - 24px);
+            height: 44px;
+            box-sizing: border-box;
+        }
+        
+        .left-navbar.collapsed .nav-item > svg {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 20px;
+            height: 20px;
+        }
+        
+        /* Active indicator - using gradient to create left border that respects border-radius */
+        .left-navbar.collapsed .nav-item.active {
+            position: relative;
+            background: linear-gradient(to right, var(--accent) 3px, var(--bg-hover) 3px) !important;
+        }
+        
+        .left-navbar.collapsed .nav-sections {
+            padding: 12px 0;
+        }
+        
+        .left-navbar.collapsed .nav-badge {
+            display: flex !important;
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            min-width: 8px;
+            height: 8px;
+            padding: 0;
+            font-size: 0;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+        
+        .left-navbar.collapsed .nav-badge.active-badge {
+            background: var(--success);
+            width: 8px;
+        }
+        
+        .left-navbar.collapsed .user-profile {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            gap: 0;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        /* User profile tooltip when collapsed */
+        .left-navbar.collapsed .user-profile::after {
+            content: 'Account';
+            position: fixed;
+            left: 72px;
+            top: auto;
+            transform: translateY(-50%);
+            padding: 8px 14px;
+            background: #1a1a1a;
+            color: #ffffff;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2147483647;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .left-navbar.collapsed .user-profile::before {
+            content: '';
+            position: fixed;
+            left: 64px;
+            top: auto;
+            transform: translateY(-50%);
+            border: 6px solid transparent;
+            border-right-color: #1a1a1a;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2147483647;
+        }
+        
+        .left-navbar.collapsed .user-profile:hover::after,
+        .left-navbar.collapsed .user-profile:hover::before {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .left-navbar.collapsed .user-avatar {
+            margin: 0 !important;
+        }
+        
+        .left-navbar.collapsed .user-menu-btn {
+            display: none;
+        }
+        
+        /* Navbar Header */
+        .navbar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            min-height: 64px;
+            flex-shrink: 0;
+        }
+        
+        .navbar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+        
+        .navbar-logo .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--accent);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
+        }
+        
+        .navbar-logo .logo-icon:hover {
+            transform: scale(1.05);
+        }
+        
+        .navbar-logo .logo-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .logo-text {
+            font-weight: 700;
+            font-size: 16px;
+            transition: opacity 0.2s ease, width 0.3s ease;
+            display: block;
+        }
+        
+        .collapse-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--bg-hover);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            position: relative;
+        }
+        
+        .collapse-btn:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+        
+        .collapse-btn svg {
+            width: 18px;
+            height: 18px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .left-navbar.collapsed .collapse-btn svg {
+            transform: rotate(180deg);
+        }
+        
+        .logo-text {
+            font-weight: 700;
+            font-size: 16px;
+            transition: opacity 0.2s ease, width 0.3s ease;
+            display: block;
+        }
+        
+        /* Navigation Content */
+        .nav-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 12px 8px;
+        }
+        
+        .nav-section {
+            margin-bottom: 16px;
+        }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            transition: opacity 0.2s ease;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            position: relative;
+            margin-bottom: 2px;
+        }
+        
+        .nav-item:hover {
+            background: var(--bg-hover);
+            color: var(--text);
+        }
+        
+        .nav-item.active {
+            background: var(--bg-hover);
+            color: var(--text);
+        }
+        
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 0 3px 3px 0;
+        }
+        
+        /* Tooltip on collapsed navbar */
+        .left-navbar.collapsed .nav-item::after {
+            content: attr(data-tooltip);
+            position: fixed;
+            left: 72px;
+            top: auto;
+            transform: translateY(-50%);
+            padding: 8px 14px;
+            background: #1a1a1a;
+            color: #ffffff;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2147483647;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
+            letter-spacing: 0.2px;
+        }
+        
+        /* Tooltip arrow */
+        .left-navbar.collapsed .nav-item .tooltip-arrow,
+        .left-navbar.collapsed .nav-item[data-tooltip]::before {
+            content: '';
+            position: fixed;
+            left: 64px;
+            top: auto;
+            transform: translateY(-50%);
+            border: 6px solid transparent;
+            border-right-color: #1a1a1a;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2147483647;
+        }
+        
+        .left-navbar.collapsed .nav-item:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .left-navbar.collapsed .nav-item:hover::before {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Override active state border for collapsed - use a different element */
+        .left-navbar.collapsed .nav-item.active {
+            background: var(--bg-hover);
+        }
+        
+        .left-navbar.collapsed .nav-item.active .active-indicator {
+            position: absolute;
+            left: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 0 3px 3px 0;
+        }
+        
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: inherit;
+        }
+        
+        .nav-text {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            transition: opacity 0.2s ease, width 0.3s ease;
+        }
+        
+        .nav-badge {
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 600;
+            background: var(--accent);
+            color: white;
+            transition: all 0.2s ease;
+            margin-left: auto;
+        }
+        
+        .nav-badge.success {
+            background: var(--success);
+        }
+        
+        .nav-badge.warning {
+            background: #f59e0b;
+        }
+        
+        .nav-badge.danger {
+            background: var(--danger);
+        }
+        
+        /* Status Indicator in Nav */
+        .nav-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            margin-left: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-status-dot.active {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+        
+        .nav-status-dot.error {
+            background: var(--danger);
+            box-shadow: 0 0 8px var(--danger);
+        }
+        
+        /* Divider */
+        .nav-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 12px 8px;
+        }
+        
+        /* User Profile Section */
+        .user-section {
+            border-top: 1px solid var(--border);
+            padding: 12px 8px;
+            margin-top: auto;
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .user-profile:hover {
+            background: var(--bg-hover);
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .user-info {
+            flex: 1;
+            min-width: 0;
+            transition: opacity 0.2s ease, width 0.3s ease;
+        }
+        
+        .user-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .user-role {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .user-menu-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            transition: all 0.15s ease;
+            opacity: 0;
+        }
+        
+        .user-profile:hover .user-menu-btn {
+            opacity: 1;
+        }
+        
+        .user-menu-btn:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+        
+        /* User Dropdown Menu */
+        .user-dropdown {
+            position: absolute;
+            bottom: 100%;
+            left: 8px;
+            right: 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+            padding: 6px;
+            margin-bottom: 8px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .dropdown-item:hover {
+            background: var(--bg-hover);
+            color: var(--text);
+        }
+        
+        .dropdown-item.danger {
+            color: var(--danger);
+        }
+        
+        .dropdown-item.danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+        
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 6px 0;
+        }
+        
+        /* User Status Indicator */
+        .user-status {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .user-status.online {
+            color: var(--success);
+            font-weight: 500;
+        }
+        
+        /* User Menu Dropdown */
+        .user-menu {
+            position: absolute;
+            bottom: 100%;
+            right: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+            padding: 8px 0;
+            margin-bottom: 12px;
+            min-width: 160px;
+            z-index: 1000;
+        }
+        
+        .user-menu a {
+            display: block;
+            padding: 10px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .user-menu a:hover {
+            background: var(--bg-hover);
+            color: var(--text);
+        }
+        
+        .user-menu hr {
+            height: 1px;
+            border: none;
+            background: var(--border);
+            margin: 6px 0;
+        }
+        
+        .user-menu a.logout-link {
+            color: var(--danger);
+        }
+        
+        .user-menu a.logout-link:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+        
+        /* Nav Sections Container */
+        .nav-sections {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 12px 8px;
+            transition: opacity 0.2s ease;
+        }
+        
+        /* User Profile Section - Stays at Bottom */
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border-top: 1px solid var(--border);
+            margin-top: auto;
+            position: relative;
+        }
+        
+        .user-profile:hover {
+            background: var(--bg-hover);
+        }
+        
+        .user-profile:hover .user-menu-btn {
+            opacity: 1;
+        }
+        
+        /* Adjust main app layout for left navbar */
+        .app-with-navbar {
+            margin-left: 260px;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .app-with-navbar.navbar-collapsed {
+            margin-left: 68px;
+        }
+        
+        /* Mobile Overlay */
+        .navbar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .navbar-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .left-navbar {
+                transform: translateX(-100%);
+            }
+            
+            .left-navbar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            .app-with-navbar {
+                margin-left: 0;
+            }
+            
+            .app-with-navbar.navbar-collapsed {
+                margin-left: 0;
+            }
+            
+            .mobile-menu-btn {
+                display: flex;
+            }
+        }
+        
+        @media (min-width: 1025px) {
+            .mobile-menu-btn {
+                display: none;
+            }
+            
+            .navbar-overlay {
+                display: none;
+            }
+        }
+        
+        /* Tooltip for collapsed state */
+        .nav-tooltip {
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--accent);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.15s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .nav-tooltip::before {
+            content: '';
+            position: absolute;
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 6px solid transparent;
+            border-right-color: var(--accent);
+        }
+        
+        .left-navbar.collapsed .nav-item:hover .nav-tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Confirmation Modal -->
+        <div class="confirm-overlay" v-if="showConfirmModal" @click.self="showConfirmModal = false">
+            <div class="confirm-modal">
+                <div class="confirm-icon" :class="confirmAction">
+                    <svg v-if="confirmAction === 'start'" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+                </div>
+                <h3 class="confirm-title">{{ confirmAction === 'start' ? 'Start Trading Bot?' : 'Stop Trading Bot?' }}</h3>
+                <p class="confirm-message">
+                    {{ confirmAction === 'start' 
+                        ? 'The bot will connect to MT5 and start monitoring Telegram for trading signals.' 
+                        : 'All active monitoring will stop. Open positions will remain but no new trades will be executed.' 
+                    }}
+                </p>
+                <div class="confirm-actions">
+                    <button class="btn" @click="showConfirmModal = false">Cancel</button>
+                    <button class="btn" :class="confirmAction === 'start' ? 'btn-success' : 'btn-danger'" @click="executeConfirmedAction">
+                        <span v-if="loading.start || loading.stop" class="spinner"></span>
+                        <span v-else>{{ confirmAction === 'start' ? 'Start Bot' : 'Stop Bot' }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="app" :class="{ 'navbar-collapsed': navbarCollapsed }">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-center">
+                    <div class="status-pill">
+                        <span class="status-dot" :class="{ active: status.bot_running }"></span>
+                        <span>{{ status.bot_running ? 'Bot Running' : 'Bot Stopped' }}</span>
+                    </div>
+                    <div class="status-pill uptime-pill" v-if="status.bot_running">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>
+                        <span class="uptime-value">{{ formatUptime(displayUptime) }}</span>
+                    </div>
+                </div>
+                
+                <div class="header-actions">
+                    <!-- Start Button - show only when bot is stopped -->
+                    <button v-if="!status.bot_running" 
+                            class="btn btn-primary btn-start" 
+                            @click="confirmStart" 
+                            :disabled="loading.start || loading.stop" 
+                            :class="{ loading: loading.start }">
+                        <span v-if="loading.start" class="spinner"></span>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                        <span>{{ loading.start ? 'Starting...' : 'Start Bot' }}</span>
+                    </button>
+                    <!-- Refresh + Stop Button - show only when bot is running -->
+                    <template v-if="status.bot_running">
+                        <span v-if="loading.refresh" style="font-size: 12px; color: var(--text-secondary); margin-right: 8px;">Refreshing...</span>
+                        <button class="btn" @click="refreshData" :disabled="loading.refresh" :class="{ loading: loading.refresh }">
+                            <span v-if="loading.refresh" class="spinner spinner-dark"></span>
+                            <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                            Refresh
+                        </button>
+                        <button class="btn btn-danger" 
+                                @click="confirmStop" 
+                                :disabled="loading.stop" 
+                                :class="{ loading: loading.stop }">
+                            <span v-if="loading.stop" class="spinner"></span>
+                            <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                            {{ loading.stop ? 'Stopping...' : 'Stop' }}
+                        </button>
+                    </template>
+                </div>
+            </header>
+            
+            <!-- Left Sidebar Navbar -->
+            <div class="left-navbar" :class="{ collapsed: navbarCollapsed }">
+                <!-- Navbar Header -->
+                <div class="navbar-header">
+                    <div class="navbar-logo">
+                        <div class="logo-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                        </div>
+                        <span class="logo-text">EvoBot</span>
+                    </div>
+                    <button class="collapse-btn" @click="navbarCollapsed = !navbarCollapsed" title="Toggle navbar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                </div>
+                
+                <!-- Navigation Sections -->
+                <nav class="nav-sections">
+                    <!-- Dashboard Section -->
+                    <div class="nav-section">
+                        <span class="nav-section-title">Dashboard</span>
+                        <div class="nav-item active" @click="activeNavItem = 'dashboard'" data-tooltip="Overview">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3"/><polyline points="12 12 20 7.5"/><polyline points="12 12 12 21"/><polyline points="12 12 4 7.5"/></svg>
+                            <span class="nav-text">Overview</span>
+                            <span v-if="status.bot_running" class="nav-badge active-badge" title="Bot is running">●</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Trades Section -->
+                    <div class="nav-section">
+                        <span class="nav-section-title">Trading</span>
+                        <div class="nav-item" @click="activeNavItem = 'trades'" data-tooltip="Open Positions">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span class="nav-text">Open Positions</span>
+                            <span v-if="activeTrades.length > 0" class="nav-badge">{{ activeTrades.length }}</span>
+                        </div>
+                        <div class="nav-item" @click="activeNavItem = 'history'" data-tooltip="Trade History">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <span class="nav-text">Trade History</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Stats Section -->
+                    <div class="nav-section">
+                        <span class="nav-section-title">Performance</span>
+                        <div class="nav-item" @click="activeNavItem = 'stats'" data-tooltip="Statistics">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 3 7 3 7 7 3 7 3 3"/><polyline points="14 3 18 3 18 7 14 7 14 3"/><polyline points="14 14 18 14 18 18 14 18 14 14"/><polyline points="3 14 7 14 7 18 3 18 3 14"/></svg>
+                            <span class="nav-text">Statistics</span>
+                        </div>
+                        <div class="nav-item" @click="activeNavItem = 'analytics'" data-tooltip="Analytics">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <span class="nav-text">Analytics</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Settings Section -->
+                    <div class="nav-section">
+                        <span class="nav-section-title">Configuration</span>
+                        <div class="nav-item" @click="activeNavItem = 'settings'" data-tooltip="Settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24"/></svg>
+                            <span class="nav-text">Settings</span>
+                        </div>
+                        <div class="nav-item" @click="activeNavItem = 'logs'" data-tooltip="System Logs">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                            <span class="nav-text">System Logs</span>
+                        </div>
+                    </div>
+                </nav>
+                
+                <!-- User Profile (Bottom of Navbar) -->
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">Trading Bot</div>
+                        <div class="user-status" :class="{ online: status.bot_running }">
+                            {{ status.bot_running ? 'Online' : 'Offline' }}
+                        </div>
+                    </div>
+                    <button class="user-menu-btn" @click="showUserMenu = !showUserMenu" title="Menu">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                    </button>
+                    
+                    <!-- User Dropdown Menu -->
+                    <div v-if="showUserMenu" class="user-menu">
+                        <a href="#" @click.prevent="() => {}">Profile</a>
+                        <a href="#" @click.prevent="() => {}">Preferences</a>
+                        <hr>
+                        <a href="#" @click.prevent="() => {}">Documentation</a>
+                        <a href="#" @click.prevent="() => {}">Support</a>
+                        <hr>
+                        <a href="#" @click.prevent="logout" class="logout-link">Logout</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="main">
+                <div class="content">
+                    <!-- Stats Row -->
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-label">Balance</div>
+                            <div class="stat-value">${{ formatNumber(account.balance) }}</div>
+                            <div class="stat-sub">{{ account.currency || 'USD' }}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Equity</div>
+                            <div class="stat-value">${{ formatNumber(account.equity) }}</div>
+                            <div class="stat-sub">Free: ${{ formatNumber(account.free_margin) }}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Today's P/L</div>
+                            <div class="stat-value" :class="account.profit >= 0 ? 'positive' : 'negative'">
+                                {{ account.profit >= 0 ? '+' : '' }}${{ formatNumber(account.profit) }}
+                            </div>
+                            <div class="stat-sub">{{ ((account.profit / (account.balance || 1)) * 100).toFixed(2) }}%</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Win Rate</div>
+                            <div class="stat-value">{{ (stats.win_rate || 0).toFixed(1) }}%</div>
+                            <div class="stat-sub">{{ stats.winning_trades || 0 }}/{{ stats.total_trades || 0 }} trades</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Open Positions</div>
+                            <div class="stat-value">{{ activeTrades.length }}</div>
+                            <div class="stat-sub">Max: {{ config.max_open_trades || 10 }}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Trades Table -->
+                    <div class="trades-section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>
+                                <span>Open Positions</span>
+                                <span class="badge">{{ mt5Positions.length }}</span>
+                            </div>
+                            <button class="btn" @click="refreshPositions" :disabled="loading.positions" style="padding: 4px 10px; font-size: 11px;">
+                                <span v-if="loading.positions" class="spinner spinner-dark" style="width: 10px; height: 10px;"></span>
+                                <svg v-else xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                            </button>
+                        </div>
+                        <div class="table-wrapper">
+                            <table v-if="mt5Positions.length > 0">
+                                <thead>
+                                    <tr>
+                                        <th>Ticket</th>
+                                        <th>Symbol</th>
+                                        <th>Type</th>
+                                        <th>Volume</th>
+                                        <th>Entry</th>
+                                        <th>Current</th>
+                                        <th>SL</th>
+                                        <th>TP</th>
+                                        <th>P/L</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="pos in mt5Positions" :key="pos.position_ticket">
+                                        <td class="font-mono">{{ pos.position_ticket }}</td>
+                                        <td class="symbol-cell">{{ pos.symbol }}</td>
+                                        <td :class="pos.direction === 'BUY' ? 'direction-buy' : 'direction-sell'">
+                                            {{ pos.direction }}
+                                        </td>
+                                        <td>{{ pos.lot_size }}</td>
+                                        <td class="font-mono">{{ formatPrice(pos.entry_price, pos.symbol) }}</td>
+                                        <td class="font-mono">{{ formatPrice(pos.current_price, pos.symbol) }}</td>
+                                        <td class="font-mono">{{ pos.stop_loss ? formatPrice(pos.stop_loss, pos.symbol) : '-' }}</td>
+                                        <td class="font-mono">{{ pos.take_profit_1 ? formatPrice(pos.take_profit_1, pos.symbol) : '-' }}</td>
+                                        <td :class="pos.profit >= 0 ? 'profit-positive' : 'profit-negative'" style="font-weight: 600;">
+                                            {{ pos.profit >= 0 ? '+' : '' }}${{ pos.profit.toFixed(2) }}
+                                        </td>
+                                        <td>
+                                            <div class="trade-actions">
+                                                <button class="btn-action btn-modify" @click="openModifyModal(pos)" title="Modify SL/TP">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                                </button>
+                                                <button class="btn-action btn-close-trade" 
+                                                        @click="closePosition(pos.position_ticket)" 
+                                                        :disabled="loading.trades[pos.position_ticket]"
+                                                        title="Close Position">
+                                                    <span v-if="loading.trades[pos.position_ticket]" class="spinner" style="width: 10px; height: 10px;"></span>
+                                                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr style="background: var(--bg-secondary); font-weight: 600;">
+                                        <td colspan="8" style="text-align: right;">Total P/L:</td>
+                                        <td :class="totalPnL >= 0 ? 'profit-positive' : 'profit-negative'">
+                                            {{ totalPnL >= 0 ? '+' : '' }}${{ totalPnL.toFixed(2) }}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            <div class="empty-state" v-else>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                                <div>No open positions</div>
+                                <div style="font-size: 11px; margin-top: 4px;">Your MT5 positions will appear here</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sidebar -->
+                <aside class="sidebar">
+                    <!-- Connection Status (always visible) -->
+                    <div class="sidebar-section">
+                        <div class="sidebar-title">Connection Status</div>
+                        <div class="connection-status-grid">
+                            <div class="connection-status-item">
+                                <div class="connection-status-indicator" :class="{ 
+                                    connected: status.mt5_connected, 
+                                    connecting: connectionSteps.mt5 === 'loading' || (loading.reconnect && !status.mt5_connected),
+                                    failed: connectionSteps.mt5 === 'failed' || (status.bot_running && !status.mt5_connected && connectionSteps.mt5 !== 'loading' && !loading.reconnect)
+                                }">
+                                    <div v-if="connectionSteps.mt5 === 'loading' || (loading.reconnect && !status.mt5_connected)" class="progress-spinner-small"></div>
+                                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+                                </div>
+                                <div class="connection-status-info">
+                                    <span class="connection-status-label">MT5 Broker</span>
+                                    <span class="connection-status-value" :class="{ 
+                                        connected: status.mt5_connected, 
+                                        failed: connectionSteps.mt5 === 'failed' || (status.bot_running && !status.mt5_connected && connectionSteps.mt5 !== 'loading' && !loading.reconnect)
+                                    }">
+                                        {{ getMT5StatusText }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="connection-status-item">
+                                <div class="connection-status-indicator" :class="{ 
+                                    connected: status.telegram_connected, 
+                                    connecting: connectionSteps.telegram === 'loading' || (loading.reconnect && !status.telegram_connected),
+                                    failed: connectionSteps.telegram === 'failed' || (status.bot_running && !status.telegram_connected && connectionSteps.telegram !== 'loading' && !loading.reconnect)
+                                }">
+                                    <div v-if="connectionSteps.telegram === 'loading' || (loading.reconnect && !status.telegram_connected)" class="progress-spinner-small"></div>
+                                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                                </div>
+                                <div class="connection-status-info">
+                                    <span class="connection-status-label">Telegram</span>
+                                    <span class="connection-status-value" :class="{ 
+                                        connected: status.telegram_connected, 
+                                        failed: connectionSteps.telegram === 'failed' || (status.bot_running && !status.telegram_connected && connectionSteps.telegram !== 'loading' && !loading.reconnect)
+                                    }">
+                                        {{ getTelegramStatusText }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="connection-status-item">
+                                <div class="connection-status-indicator" :class="{ 
+                                    connected: account.login > 0, 
+                                    connecting: connectionSteps.account === 'loading',
+                                    failed: status.bot_running && !account.login && connectionSteps.account !== 'loading'
+                                }">
+                                    <div v-if="connectionSteps.account === 'loading'" class="progress-spinner-small"></div>
+                                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+                                </div>
+                                <div class="connection-status-info">
+                                    <span class="connection-status-label">Account</span>
+                                    <span class="connection-status-value" :class="{ 
+                                        connected: account.login > 0, 
+                                        failed: status.bot_running && !account.login && connectionSteps.account !== 'loading'
+                                    }">
+                                        {{ getAccountStatusText }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Retry Connection Button -->
+                        <button v-if="status.bot_running && (!status.mt5_connected || !status.telegram_connected)" 
+                                class="btn btn-retry" 
+                                @click="retryConnection" 
+                                :disabled="loading.reconnect"
+                                :class="{ loading: loading.reconnect }">
+                            <span v-if="loading.reconnect" class="spinner spinner-dark"></span>
+                            <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                            {{ loading.reconnect ? 'Reconnecting...' : 'Retry Connection' }}
+                        </button>
+                    </div>
+                    
+                    <!-- Account Details -->
+                    <div class="sidebar-section">
+                        <div class="sidebar-title">Account Details</div>
+                        <div class="account-info">
+                            <div class="account-row">
+                                <span class="account-label">Server</span>
+                                <span class="account-value">{{ account.server || '-' }}</span>
+                            </div>
+                            <div class="account-row">
+                                <span class="account-label">Login</span>
+                                <span class="account-value">{{ account.login || '-' }}</span>
+                            </div>
+                            <div class="account-row">
+                                <span class="account-label">Leverage</span>
+                                <span class="account-value">1:{{ account.leverage || 0 }}</span>
+                            </div>
+                            <div class="account-row">
+                                <span class="account-label">Margin Used</span>
+                                <span class="account-value">${{ formatNumber(account.margin) }}</span>
+                            </div>
+                            <div class="account-row">
+                                <span class="account-label">Drawdown</span>
+                                <span class="account-value" :style="{ color: (risk.current_drawdown || 0) > 3 ? 'var(--danger)' : 'inherit' }">
+                                    {{ (risk.current_drawdown || 0).toFixed(2) }}%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Telegram Settings -->
+                    <div class="sidebar-settings-section">
+                        <div class="sidebar-settings-header" @click="toggleSection('telegram')">
+                            <div class="sidebar-title">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                                Telegram
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="settings-status" :class="hasRequiredSettings ? 'configured' : 'missing'">
+                                    {{ hasRequiredSettings ? '✓ Configured' : '! Setup Required' }}
+                                </span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon" :class="{ collapsed: !expandedSections.telegram }"><path d="m6 9 6 6 6-6"/></svg>
+                            </div>
+                        </div>
+                        <div class="sidebar-settings-content" :class="{ collapsed: !expandedSections.telegram, 'expanded-telegram': expandedSections.telegram }">
+                            <div class="inline-edit-row" v-for="field in telegramFields" :key="field.key">
+                                <span class="inline-edit-label">{{ field.label }}</span>
+                                <div class="inline-edit-value" v-if="editingField !== 'telegram.' + field.key">
+                                    <span :class="{ masked: field.masked }">{{ getFieldDisplay('telegram', field) }}</span>
+                                    <button class="edit-btn" @click.stop="startEdit('telegram', field.key, settings.telegram[field.key])">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                    </button>
+                                </div>
+                                <div class="inline-edit-input" v-else>
+                                    <input :type="field.masked ? 'password' : 'text'" v-model="editValue" @keyup.enter="saveEdit('telegram', field.key)" @keyup.escape="cancelEdit" autofocus>
+                                    <button class="confirm-btn" @click.stop="saveEdit('telegram', field.key)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                    </button>
+                                    <button class="cancel-btn" @click.stop="cancelEdit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Broker Settings -->
+                    <div class="sidebar-settings-section">
+                        <div class="sidebar-settings-header" @click="toggleSection('broker')">
+                            <div class="sidebar-title">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+                                MetaApi
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon" :class="{ collapsed: !expandedSections.broker }"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                        <div class="sidebar-settings-content" :class="{ collapsed: !expandedSections.broker, 'expanded-broker': expandedSections.broker }">
+                            <div class="inline-edit-row" v-for="field in brokerFields" :key="field.key">
+                                <span class="inline-edit-label">{{ field.label }}</span>
+                                <div class="inline-edit-value" v-if="editingField !== 'broker.' + field.key">
+                                    <span :class="{ masked: field.masked }">{{ getFieldDisplay('broker', field) }}</span>
+                                    <button class="edit-btn" @click.stop="startEdit('broker', field.key, settings.broker[field.key])">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                    </button>
+                                </div>
+                                <div class="inline-edit-input" v-else>
+                                    <input :type="field.masked ? 'password' : 'text'" v-model="editValue" @keyup.enter="saveEdit('broker', field.key)" @keyup.escape="cancelEdit" autofocus>
+                                    <button class="confirm-btn" @click.stop="saveEdit('broker', field.key)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                    </button>
+                                    <button class="cancel-btn" @click.stop="cancelEdit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Trading Settings -->
+                    <div class="sidebar-settings-section">
+                        <div class="sidebar-settings-header" @click="toggleSection('trading')">
+                            <div class="sidebar-title">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                                Trading
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon" :class="{ collapsed: !expandedSections.trading }"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                        <div class="sidebar-settings-content" :class="{ collapsed: !expandedSections.trading, 'expanded-trading': expandedSections.trading }">
+                            <div class="inline-edit-row" v-for="field in tradingFields" :key="field.key">
+                                <span class="inline-edit-label">{{ field.label }}</span>
+                                <div class="inline-edit-value" v-if="editingField !== 'trading.' + field.key">
+                                    <span>{{ settings.trading[field.key] }}{{ field.suffix || '' }}</span>
+                                    <button class="edit-btn" @click.stop="startEdit('trading', field.key, settings.trading[field.key])">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                    </button>
+                                </div>
+                                <div class="inline-edit-input" v-else>
+                                    <input type="number" v-model="editValue" :step="field.step || 1" @keyup.enter="saveEdit('trading', field.key)" @keyup.escape="cancelEdit" autofocus>
+                                    <button class="confirm-btn" @click.stop="saveEdit('trading', field.key)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                    </button>
+                                    <button class="cancel-btn" @click.stop="cancelEdit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Channels Management -->
+                    <div class="sidebar-settings-section">
+                        <div class="sidebar-settings-header" @click="toggleSection('channels')">
+                            <div class="sidebar-title">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></svg>
+                                Channels
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="settings-status" :class="settings.telegram.signal_channels.length > 0 ? 'configured' : 'missing'">
+                                    {{ settings.telegram.signal_channels.length }} Signal{{ settings.telegram.signal_channels.length !== 1 ? 's' : '' }}
+                                </span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon" :class="{ collapsed: !expandedSections.channels }"><path d="m6 9 6 6 6-6"/></svg>
+                            </div>
+                        </div>
+                        <div class="sidebar-settings-content" :class="{ collapsed: !expandedSections.channels, 'expanded-channels': expandedSections.channels }">
+                            <!-- Signal Channels -->
+                            <div class="channel-section-label">Signal Channels</div>
+                            <div class="channel-list">
+                                <div class="channel-item" v-for="(channel, index) in settings.telegram.signal_channels" :key="'sig-' + index">
+                                    <span class="channel-name">{{ channel }}</span>
+                                    <button class="remove-btn" @click.stop="removeSignalChannel(index)" title="Remove channel">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    </button>
+                                </div>
+                                <div v-if="settings.telegram.signal_channels.length === 0" style="font-size: 11px; color: var(--text-muted); padding: 8px 0;">
+                                    No signal channels configured
+                                </div>
+                            </div>
+                            <div class="add-channel-row">
+                                <input type="text" v-model="newSignalChannel" placeholder="Channel ID (e.g., -1001234567890)" @keyup.enter="addSignalChannel">
+                                <button class="add-btn" @click.stop="addSignalChannel" :disabled="!newSignalChannel.trim()">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Add
+                                </button>
+                            </div>
+                            
+                            <!-- Notification Channel -->
+                            <div class="channel-section-label">Notification Channel</div>
+                            <div class="inline-edit-row">
+                                <span class="inline-edit-label">Send alerts to</span>
+                                <div class="inline-edit-value" v-if="editingField !== 'notification_channel'">
+                                    <span>{{ settings.telegram.notification_channel || '(not set)' }}</span>
+                                    <button class="edit-btn" @click.stop="startEdit('notification', 'channel', settings.telegram.notification_channel)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                    </button>
+                                </div>
+                                <div class="inline-edit-input" v-else>
+                                    <input type="text" v-model="editValue" placeholder="Channel ID" @keyup.enter="saveNotificationChannel" @keyup.escape="cancelEdit" autofocus>
+                                    <button class="confirm-btn" @click.stop="saveNotificationChannel">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                    </button>
+                                    <button class="cancel-btn" @click.stop="cancelEdit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Activity Feed -->
+                    <div class="sidebar-section activity-section">
+                        <div class="sidebar-title">Recent Activity</div>
+                        <div class="activity-list">
+                            <div class="activity-item" v-for="activity in activities" :key="activity.id">
+                                <div class="activity-icon" :class="activity.type">
+                                    <svg v-if="activity.icon === 'arrow-up-right'" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+                                    <svg v-else-if="activity.icon === 'arrow-down-right'" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10"/><path d="M17 7v10H7"/></svg>
+                                    <svg v-else-if="activity.icon === 'x'" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12m-10 0a10 10 0 1 0 20 0a10 10 0 1 0 -20 0"/></svg>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title">{{ activity.title }}</div>
+                                    <div class="activity-time">{{ activity.time }}</div>
+                                </div>
+                            </div>
+                            <div class="empty-state" v-if="activities.length === 0" style="padding: 20px;">
+                                <div style="font-size: 12px;">No recent activity</div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+        
+        <!-- Notifications -->
+        <div class="notifications">
+            <transition-group name="notification">
+                <div v-for="notif in notifications" :key="notif.id" :class="['notification', notif.type, { removing: notif.removing }]">
+                    <div class="notif-icon">
+                        <svg v-if="notif.type === 'success'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        <svg v-else-if="notif.type === 'error'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                        <svg v-else-if="notif.type === 'warning'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    </div>
+                    <div class="notif-content">
+                        <div class="notif-title">{{ getNotifTitle(notif.type) }}</div>
+                        <div class="notif-message">{{ notif.message }}</div>
+                    </div>
+                    <button class="close-btn" @click="dismissNotification(notif.id)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+            </transition-group>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    ws: null,
+                    showConfirmModal: false,
+                    confirmAction: 'start',
+                    connectionSteps: {
+                        mt5: 'pending',
+                        telegram: 'pending',
+                        account: 'pending'
+                    },
+                    expandedSections: {
+                        telegram: false,
+                        broker: false,
+                        trading: true,
+                        channels: false
+                    },
+                    editingField: null,
+                    editValue: '',
+                    newSignalChannel: '',
+                    telegramFields: [
+                        { key: 'api_id', label: 'API ID', masked: false, required: true },
+                        { key: 'api_hash', label: 'API Hash', masked: true, required: true },
+                        { key: 'phone_number', label: 'Phone', masked: false, required: true }
+                    ],
+                    brokerFields: [
+                        { key: 'metaapi_token', label: 'Token', masked: true, required: true },
+                        { key: 'metaapi_account_id', label: 'Account ID', masked: false, required: true }
+                    ],
+                    tradingFields: [
+                        { key: 'default_lot_size', label: 'Lot Size', step: 0.01 },
+                        { key: 'max_spread_pips', label: 'Max Spread', suffix: ' pips', step: 0.5 },
+                        { key: 'max_open_trades', label: 'Max Trades', step: 1 },
+                        { key: 'max_daily_drawdown_percent', label: 'Max Drawdown', suffix: '%', step: 0.5 }
+                    ],
+                    status: { 
+                        bot_running: false, 
+                        mt5_connected: false, 
+                        telegram_connected: false,
+                        uptime_seconds: 0
+                    },
+                    account: { 
+                        balance: 0, 
+                        equity: 0, 
+                        margin: 0, 
+                        free_margin: 0, 
+                        profit: 0,
+                        currency: 'USD',
+                        leverage: 0,
+                        server: '',
+                        login: 0,
+                        name: ''
+                    },
+                    stats: { 
+                        total_trades: 0, 
+                        winning_trades: 0,
+                        losing_trades: 0,
+                        win_rate: 0, 
+                        total_profit: 0, 
+                        open_trades: 0,
+                        last_updated: null
+                    },
+                    risk: { current_drawdown: 0 },
+                    config: { 
+                        default_lot_size: 0.01, 
+                        max_spread_pips: 5.0, 
+                        max_daily_drawdown_percent: 5.0, 
+                        max_open_trades: 10 
+                    },
+                    settings: {
+                        telegram: {
+                            api_id: '',
+                            api_hash: '',
+                            phone_number: '',
+                            session_name: 'evobot_session',
+                            signal_channels: [],
+                            signal_channels_str: '',
+                            notification_channel: ''
+                        },
+                        broker: {
+                            metaapi_token: '',
+                            metaapi_account_id: '',
+                            server: '',
+                            login: '',
+                            password: ''
+                        },
+                        trading: {
+                            default_lot_size: 0.01,
+                            max_spread_pips: 10,
+                            max_open_trades: 10,
+                            max_daily_drawdown_percent: 5,
+                            entry_zone_tolerance: 20,
+                            execute_immediately: true
+                        },
+                        risk: {
+                            avoid_high_impact_news: true,
+                            news_blackout_minutes_before: 30,
+                            news_blackout_minutes_after: 15,
+                            trading_start_hour: 0,
+                            trading_end_hour: 24,
+                            max_risk_percent_per_trade: 2
+                        }
+                    },
+                    activeTrades: [],
+                    mt5Positions: [],
+                    activities: [],
+                    notifications: [],
+                    loading: { 
+                        start: false, 
+                        stop: false, 
+                        refresh: false,
+                        positions: false,
+                        settings: false,
+                        trades: {},
+                        initial: true,
+                        reconnect: false
+                    },
+                    nextNotifId: 0,
+                    priceCache: {},
+                    startingPhase: null,
+                    // Settings validation
+                    settingsValidated: false,
+                    settingsErrors: [],
+                    showSetupWizard: false,
+                    // Connection testing
+                    testingTelegram: false,
+                    testingBroker: false,
+                    telegramTestResult: null,
+                    brokerTestResult: null,
+                    displayUptime: 0,
+                    uptimeInterval: null,
+                    // Navbar properties
+                    navbarCollapsed: false,
+                    activeNavItem: 'dashboard',
+                    showUserMenu: false
+                };
+            },
+            computed: {
+                totalPnL() {
+                    return this.mt5Positions.reduce((sum, pos) => sum + (pos.profit || 0), 0);
+                },
+                hasRequiredSettings() {
+                    // Check if minimum required settings are configured
+                    const hasTelegram = this.settings.telegram.api_id && 
+                                       this.settings.telegram.api_hash && 
+                                       this.settings.telegram.phone_number &&
+                                       (this.settings.telegram.signal_channels && this.settings.telegram.signal_channels.length > 0);
+                    const hasBroker = this.settings.broker.metaapi_token && 
+                                     this.settings.broker.metaapi_account_id;
+                    return hasTelegram && hasBroker;
+                },
+                getMT5StatusText() {
+                    if (this.status.mt5_connected) return 'Connected';
+                    if (this.loading.reconnect) return 'Reconnecting...';
+                    if (this.connectionSteps.mt5 === 'loading') return 'Connecting...';
+                    if (this.connectionSteps.mt5 === 'failed') return 'Failed to Connect';
+                    if (this.status.bot_running) return 'Failed to Connect';
+                    return 'Not Connected';
+                },
+                getTelegramStatusText() {
+                    if (this.status.telegram_connected) return 'Connected';
+                    if (this.loading.reconnect) return 'Reconnecting...';
+                    if (this.connectionSteps.telegram === 'loading') return 'Connecting...';
+                    if (this.connectionSteps.telegram === 'failed') return 'Failed to Connect';
+                    if (this.status.bot_running) return 'Failed to Connect';
+                    return 'Not Connected';
+                },
+                getAccountStatusText() {
+                    if (this.account.login > 0) return this.account.name || ('Account #' + this.account.login);
+                    if (this.connectionSteps.account === 'loading') return 'Loading...';
+                    if (this.status.bot_running) return 'No Account Data';
+                    return 'Not Loaded';
+                }
+            },
+            methods: {
+                // Icon initialization methods
+                initIcons() {
+                    // Use requestAnimationFrame to ensure DOM is ready
+                    requestAnimationFrame(() => {
+                        try {
+                            lucide.createIcons();
+                        } catch (e) {
+                            // Ignore errors from icon initialization
+                        }
+                    });
+                },
+                debouncedInitIcons() {
+                    if (this._iconTimeout) {
+                        clearTimeout(this._iconTimeout);
+                    }
+                    this._iconTimeout = setTimeout(() => {
+                        this.initIcons();
+                    }, 100);
+                },
+                formatNumber(value) {
+                    if (value === null || value === undefined) return '0.00';
+                    return Number(value).toLocaleString('en-US', { 
+                        minimumFractionDigits: 2, 
+                        maximumFractionDigits: 2 
+                    });
+                },
+                formatPrice(value, symbol) {
+                    if (!value) return '-';
+                    const digits = symbol?.includes('JPY') ? 3 : (symbol?.includes('XAU') ? 2 : 5);
+                    return Number(value).toFixed(digits);
+                },
+                formatUptime(seconds) {
+                    if (!seconds) return '0s';
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    const secs = Math.floor(seconds % 60);
+                    if (hours > 0) return `${hours}h ${minutes}m`;
+                    if (minutes > 0) return `${minutes}m ${secs}s`;
+                    return `${secs}s`;
+                },
+                // Confirmation modal methods
+                confirmStart() {
+                    if (!this.hasRequiredSettings) {
+                        this.expandedSections.telegram = true;
+                        this.expandedSections.broker = true;
+                        this.notify('Please configure Telegram and MetaApi settings first', 'warning');
+                        return;
+                    }
+                    this.confirmAction = 'start';
+                    this.showConfirmModal = true;
+                    
+                },
+                confirmStop() {
+                    this.confirmAction = 'stop';
+                    this.showConfirmModal = true;
+                    
+                },
+                async executeConfirmedAction() {
+                    // Close modal immediately before starting action
+                    this.showConfirmModal = false;
+                    
+                    // Small delay to let modal close animation finish
+                    await this.$nextTick();
+                    
+                    if (this.confirmAction === 'start') {
+                        await this.startBot();
+                    } else {
+                        await this.stopBot();
+                    }
+                },
+                // Inline edit methods
+                toggleSection(section) {
+                    this.expandedSections[section] = !this.expandedSections[section];
+                },
+                getFieldDisplay(section, field) {
+                    const value = this.settings[section][field.key];
+                    if (!value) return field.required ? '(not set)' : '-';
+                    if (field.masked) return '••••••••';
+                    if (String(value).length > 15) return String(value).substring(0, 12) + '...';
+                    return value;
+                },
+                startEdit(section, key, value) {
+                    this.editingField = `${section}.${key}`;
+                    this.editValue = value || '';
+                    this.$nextTick(() => {
+                        const input = document.querySelector('.inline-edit-input input');
+                        if (input) input.focus();
+                    });
+                },
+                async saveEdit(section, key) {
+                    const oldValue = this.settings[section][key];
+                    this.settings[section][key] = this.editValue;
+                    this.editingField = null;
+                    
+                    // Auto-save to server
+                    try {
+                        const payload = {
+                            telegram: {
+                                ...this.settings.telegram
+                            },
+                            broker: this.settings.broker,
+                            trading: this.settings.trading,
+                            risk: this.settings.risk
+                        };
+                        
+                        const res = await fetch('/api/settings', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (res.ok) {
+                            this.notify('Setting saved', 'success');
+                        } else {
+                            this.settings[section][key] = oldValue;
+                            this.notify('Failed to save setting', 'error');
+                        }
+                    } catch (e) {
+                        this.settings[section][key] = oldValue;
+                        this.notify('Failed to save setting', 'error');
+                    }
+                    
+                },
+                cancelEdit() {
+                    this.editingField = null;
+                    
+                },
+                // Channel management methods
+                async addSignalChannel() {
+                    const channel = this.newSignalChannel.trim();
+                    if (!channel) return;
+                    
+                    // Parse as number if it looks like a channel ID
+                    const channelValue = /^-?\d+$/.test(channel) ? parseInt(channel) : channel;
+                    
+                    if (this.settings.telegram.signal_channels.includes(channelValue)) {
+                        this.notify('Channel already exists', 'warning');
+                        return;
+                    }
+                    
+                    this.settings.telegram.signal_channels.push(channelValue);
+                    this.newSignalChannel = '';
+                    
+                    // Save to server
+                    try {
+                        const res = await fetch('/api/settings/telegram/channels', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                signal_channels: this.settings.telegram.signal_channels,
+                                notification_channel: this.settings.telegram.notification_channel
+                            })
+                        });
+                        
+                        if (res.ok) {
+                            this.notify('Signal channel added', 'success');
+                        } else {
+                            this.settings.telegram.signal_channels.pop();
+                            this.notify('Failed to add channel', 'error');
+                        }
+                    } catch (e) {
+                        this.settings.telegram.signal_channels.pop();
+                        this.notify('Failed to add channel', 'error');
+                    }
+                    
+                },
+                async removeSignalChannel(index) {
+                    const removed = this.settings.telegram.signal_channels.splice(index, 1)[0];
+                    
+                    try {
+                        const res = await fetch('/api/settings/telegram/channels', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                signal_channels: this.settings.telegram.signal_channels,
+                                notification_channel: this.settings.telegram.notification_channel
+                            })
+                        });
+                        
+                        if (res.ok) {
+                            this.notify('Channel removed', 'success');
+                        } else {
+                            this.settings.telegram.signal_channels.splice(index, 0, removed);
+                            this.notify('Failed to remove channel', 'error');
+                        }
+                    } catch (e) {
+                        this.settings.telegram.signal_channels.splice(index, 0, removed);
+                        this.notify('Failed to remove channel', 'error');
+                    }
+                    
+                },
+                async saveNotificationChannel() {
+                    const oldValue = this.settings.telegram.notification_channel;
+                    const newValue = this.editValue.trim();
+                    
+                    // Parse as number if it looks like a channel ID
+                    this.settings.telegram.notification_channel = /^-?\d+$/.test(newValue) ? parseInt(newValue) : newValue;
+                    this.editingField = null;
+                    
+                    try {
+                        const res = await fetch('/api/settings/telegram/channels', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                signal_channels: this.settings.telegram.signal_channels,
+                                notification_channel: this.settings.telegram.notification_channel
+                            })
+                        });
+                        
+                        if (res.ok) {
+                            this.notify('Notification channel updated', 'success');
+                        } else {
+                            this.settings.telegram.notification_channel = oldValue;
+                            this.notify('Failed to update channel', 'error');
+                        }
+                    } catch (e) {
+                        this.settings.telegram.notification_channel = oldValue;
+                        this.notify('Failed to update channel', 'error');
+                    }
+                    
+                },
+                getNotifIcon(type) {
+                    const icons = {
+                        success: 'check-circle',
+                        error: 'alert-circle',
+                        warning: 'alert-triangle',
+                        info: 'info'
+                    };
+                    return icons[type] || 'info';
+                },
+                getNotifTitle(type) {
+                    const titles = {
+                        success: 'Success',
+                        error: 'Error',
+                        warning: 'Warning',
+                        info: 'Info'
+                    };
+                    return titles[type] || 'Notification';
+                },
+                dismissNotification(id) {
+                    const notif = this.notifications.find(n => n.id === id);
+                    if (notif) {
+                        notif.removing = true;
+                        setTimeout(() => {
+                            this.notifications = this.notifications.filter(n => n.id !== id);
+                        }, 250);
+                    }
+                },
+                async retryConnection() {
+                    if (this.loading.reconnect) return;
+                    
+                    this.loading.reconnect = true;
+                    this.addActivity('Retrying connections...', 'info', 'refresh-cw');
+                    
+                    try {
+                        const res = await fetch('/api/bot/reconnect', { method: 'POST' });
+                        if (!res.ok) {
+                            const err = await res.json();
+                            throw new Error(err.detail || 'Reconnect failed');
+                        }
+                        
+                        const data = await res.json();
+                        
+                        // Update status based on results
+                        this.status.mt5_connected = data.mt5_connected;
+                        this.status.telegram_connected = data.telegram_connected;
+                        
+                        // Show results
+                        if (data.mt5_connected && data.telegram_connected) {
+                            this.showNotification('All services reconnected successfully!', 'success');
+                            this.addActivity('All connections restored', 'success', 'check-circle');
+                        } else {
+                            const failed = [];
+                            if (!data.mt5_connected) failed.push('MT5');
+                            if (!data.telegram_connected) failed.push('Telegram');
+                            this.showNotification(`Reconnect completed. Failed: ${failed.join(', ')}`, 'warning');
+                            this.addActivity(`Reconnect partial: ${failed.join(', ')} still disconnected`, 'warning', 'alert-triangle');
+                        }
+                        
+                        // Refresh all data
+                        await this.refreshData();
+                        
+                    } catch (e) {
+                        console.error('Reconnect error:', e);
+                        this.showNotification(`Reconnect failed: ${e.message}`, 'error');
+                        this.addActivity('Reconnect failed', 'error', 'x-circle');
+                    } finally {
+                        this.loading.reconnect = false;
+                    }
+                },
+                async refreshData() {
+                    this.loading.refresh = true;
+                    try {
+                        const res = await fetch('/api/status');
+                        if (!res.ok) throw new Error('Failed to fetch status');
+                        const data = await res.json();
+                        
+                        this.status = {
+                            bot_running: data.bot_running,
+                            mt5_connected: data.mt5_connected,
+                            telegram_connected: data.telegram_connected,
+                            uptime_seconds: data.uptime_seconds || 0
+                        };
+                        
+                        if (data.account) {
+                            this.account = {
+                                balance: data.account.balance || 0,
+                                equity: data.account.equity || 0,
+                                margin: data.account.margin || 0,
+                                free_margin: data.account.free_margin || 0,
+                                profit: data.account.profit || 0,
+                                currency: data.account.currency || 'USD',
+                                leverage: data.account.leverage || 0,
+                                server: data.account.server || '',
+                                login: data.account.login || 0
+                            };
+                        }
+                        
+                        if (data.stats) {
+                            this.stats = {
+                                total_trades: data.stats.total_trades || 0,
+                                winning_trades: data.stats.winning_trades || 0,
+                                losing_trades: data.stats.losing_trades || 0,
+                                win_rate: data.stats.win_rate || 0,
+                                total_profit: data.stats.total_profit || 0,
+                                open_trades: data.stats.open_trades || 0,
+                                last_updated: data.stats.last_updated || new Date().toISOString()
+                            };
+                        }
+                        
+                        if (data.risk) {
+                            this.risk = data.risk;
+                        }
+                        
+                        if (data.config) {
+                            this.config = data.config;
+                        }
+                        
+                        await this.refreshTrades();
+                        this.loading.initial = false;
+                    } catch (e) {
+                        console.error('Refresh error:', e);
+                        if (this.loading.initial) {
+                            this.notify('Unable to connect to server. Please check if the bot is running.', 'error');
+                        }
+                    } finally {
+                        this.loading.refresh = false;
+                    }
+                },
+                async refreshTrades() {
+                    try {
+                        const res = await fetch('/api/trades?active_only=true');
+                        if (!res.ok) throw new Error('Failed to fetch trades');
+                        const data = await res.json();
+                        this.activeTrades = data.trades || [];
+                    } catch (e) {
+                        console.error('Trades error:', e);
+                    }
+                },
+                async refreshPositions() {
+                    this.loading.positions = true;
+                    try {
+                        const res = await fetch('/api/positions');
+                        if (!res.ok) throw new Error('Failed to fetch positions');
+                        const data = await res.json();
+                        this.mt5Positions = data.positions || [];
+                    } catch (e) {
+                        console.error('Positions error:', e);
+                    } finally {
+                        this.loading.positions = false;
+                    }
+                },
+                async closePosition(ticket) {
+                    if (!confirm(`Close position #${ticket}?`)) return;
+                    this.loading.trades[ticket] = true;
+                    try {
+                        const res = await fetch(`/api/positions/${ticket}/close`, { method: 'POST' });
+                        if (res.ok) {
+                            this.notify('Position closed successfully', 'success');
+                            this.addActivity(`Closed #${ticket}`, 'danger', 'x');
+                            await this.refreshPositions();
+                        } else {
+                            const data = await res.json();
+                            this.notify(data.detail || 'Failed to close position', 'error');
+                        }
+                    } catch (e) {
+                        this.notify('Connection error', 'error');
+                    } finally {
+                        delete this.loading.trades[ticket];
+                    }
+                },
+                openModifyModal(position) {
+                    // TODO: Implement modify SL/TP modal
+                    this.notify('Modify SL/TP feature coming soon', 'info');
+                },
+                async startBot() {
+                    // Check settings before starting
+                    if (!this.hasRequiredSettings) {
+                        this.expandedSections.telegram = true;
+                        this.expandedSections.broker = true;
+                        this.notify('Please configure required settings before starting the bot', 'warning');
+                        
+                        return;
+                    }
+                    
+                    this.loading.start = true;
+                    this.startingPhase = 'connecting';
+                    
+                    // Reset connection steps to loading state
+                    this.connectionSteps = {
+                        mt5: 'loading',
+                        telegram: 'pending',
+                        account: 'pending'
+                    };
+                    
+                    // Force Vue to update
+                    await this.$nextTick();
+                    
+                    try {
+                        const res = await fetch('/api/bot/start', { method: 'POST' });
+                        const data = await res.json();
+                        
+                        if (!res.ok) {
+                            this.notify(data.detail || 'Failed to start bot', 'error');
+                            this.connectionSteps.mt5 = 'error';
+                            this.startingPhase = null;
+                            this.status.bot_running = false;
+                            return;
+                        }
+                        
+                        // Check if startup failed (not all connections succeeded)
+                        if (data.status === 'failed') {
+                            // Update connection steps based on actual connection state
+                            this.connectionSteps.mt5 = data.mt5_connected ? 'success' : 'failed';
+                            this.connectionSteps.telegram = data.telegram_connected ? 'success' : 'failed';
+                            this.connectionSteps.account = data.account_ok ? 'success' : 'failed';
+                            
+                            // Show error notifications
+                            if (data.errors && data.errors.length > 0) {
+                                data.errors.forEach(err => {
+                                    this.notify(err, 'error');
+                                });
+                            }
+                            
+                            this.notify('❌ Bot startup failed - not all connections succeeded. Please retry.', 'error');
+                            this.addActivity('Bot Startup Failed', 'error', 'x-circle');
+                            
+                            this.startingPhase = null;
+                            this.status.bot_running = false;
+                            return;
+                        }
+                        
+                        // Bot started successfully - all connections are good
+                        this.status.bot_running = true;
+                        this.status.mt5_connected = data.mt5_connected;
+                        this.status.telegram_connected = data.telegram_connected;
+                        
+                        // Update connection steps - all should be success
+                        this.connectionSteps.mt5 = 'success';
+                        this.connectionSteps.telegram = 'success';
+                        this.connectionSteps.account = 'success';
+                        
+                        this.notify('Connected to MT5 broker ✓', 'success');
+                        this.notify('Telegram listener active ✓', 'success');
+                        this.notify('🚀 Bot is now live and monitoring signals!', 'success');
+                        this.addActivity('Bot Started - All Connected', 'success', 'play');
+                        
+                        this.startingPhase = 'started';
+                        
+                        // Start uptime counter
+                        this.startUptimeCounter();
+                        
+                        // Fetch positions immediately
+                        this.refreshPositions();
+                        
+                        // Clear starting phase after a delay
+                        await this.sleep(1500);
+                        this.startingPhase = null;
+                        
+                    } catch (e) {
+                        console.error('Start bot error:', e);
+                        this.notify('Connection error. Please check your network.', 'error');
+                        this.connectionSteps.mt5 = 'error';
+                        this.startingPhase = null;
+                        this.status.bot_running = false;
+                    } finally {
+                        this.loading.start = false;
+                        await this.$nextTick();
+                        
+                        // Refresh data after a delay to let server state settle
+                        setTimeout(() => {
+                            this.refreshData();
+                        }, 1000);
+                    }
+                },
+                sleep(ms) {
+                    return new Promise(resolve => setTimeout(resolve, ms));
+                },
+                startUptimeCounter() {
+                    // Clear any existing interval
+                    if (this.uptimeInterval) {
+                        clearInterval(this.uptimeInterval);
+                    }
+                    // Update uptime every second
+                    this.uptimeInterval = setInterval(() => {
+                        if (this.status.bot_running) {
+                            this.displayUptime++;
+                        }
+                    }, 1000);
+                },
+                async stopBot() {
+                    this.loading.stop = true;
+                    
+                    // Set bot stopped immediately so buttons update
+                    this.status.bot_running = false;
+                    
+                    // Force Vue to update
+                    await this.$nextTick();
+                    
+                    
+                    try {
+                        const res = await fetch('/api/bot/stop', { method: 'POST' });
+                        if (!res.ok) {
+                            const data = await res.json();
+                            this.notify(data.detail || 'Failed to stop bot', 'error');
+                            // Revert status on failure
+                            this.status.bot_running = true;
+                        } else {
+                            // Stop uptime counter
+                            if (this.uptimeInterval) {
+                                clearInterval(this.uptimeInterval);
+                                this.uptimeInterval = null;
+                            }
+                            this.displayUptime = 0;
+                            
+                            // Reset connection status
+                            this.status.mt5_connected = false;
+                            this.status.telegram_connected = false;
+                            
+                            // Reset connection steps
+                            this.connectionSteps = {
+                                mt5: 'pending',
+                                telegram: 'pending',
+                                signals: 'pending'
+                            };
+                            
+                            this.notify('Trading bot stopped successfully', 'success');
+                            this.addActivity('Bot Stopped', 'danger', 'square');
+                        }
+                    } catch (e) {
+                        this.notify('Connection error. Please check your network.', 'error');
+                        // Revert status on error
+                        this.status.bot_running = true;
+                    } finally {
+                        this.loading.stop = false;
+                        // Force UI update without calling refreshData (which would overwrite our status)
+                        await this.$nextTick();
+                        
+                        
+                        // Refresh other data after a delay to let server state settle
+                        setTimeout(() => {
+                            this.refreshData();
+                        }, 1000);
+                    }
+                },
+                async closeTrade(id) {
+                    if (!confirm('Are you sure you want to close this trade?')) return;
+                    this.loading.trades[id] = true;
+                    try {
+                        const res = await fetch(`/api/trades/${id}/close`, { method: 'POST' });
+                        if (res.ok) {
+                            this.notify('Trade closed successfully', 'success');
+                            this.addActivity('Trade Closed', 'danger', 'x');
+                            this.refreshData();
+                        } else {
+                            const data = await res.json();
+                            this.notify(data.detail || 'Failed to close trade', 'error');
+                        }
+                    } catch (e) {
+                        this.notify('Connection error. Please try again.', 'error');
+                    } finally {
+                        delete this.loading.trades[id];
+                    }
+                },
+                connectWebSocket() {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//${window.location.host}/ws`;
+                    console.log('Connecting to WebSocket:', wsUrl);
+                    this.ws = new WebSocket(wsUrl);
+                    
+                    this.ws.onopen = () => {
+                        console.log('WebSocket connected');
+                    };
+                    
+                    this.ws.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+                        
+                        // Handle real-time account updates
+                        if (data.type === 'account_update') {
+                            const acc = data.data;
+                            this.account = {
+                                balance: acc.balance || 0,
+                                equity: acc.equity || 0,
+                                margin: acc.margin || 0,
+                                free_margin: acc.free_margin || 0,
+                                profit: acc.profit || 0,
+                                currency: acc.currency || 'USD',
+                                leverage: acc.leverage || 0,
+                                server: acc.server || '',
+                                login: acc.login || 0
+                            };
+                        }
+                        // Handle real-time positions updates
+                        else if (data.type === 'positions_update') {
+                            this.mt5Positions = data.data.positions || [];
+                        }
+                        // Handle startup progress updates
+                        else if (data.type === 'startup_progress') {
+                            const { step, status, message, connected } = data.data;
+                            
+                            // Update connectionSteps for UI progress indicators
+                            if (step === 'mt5') {
+                                this.connectionSteps.mt5 = status;
+                                // Update actual status based on connected flag
+                                if (status === 'success') {
+                                    this.status.mt5_connected = true;
+                                } else if (status === 'failed' || status === 'error' || status === 'warning') {
+                                    this.status.mt5_connected = connected === true;
+                                }
+                            } else if (step === 'telegram') {
+                                this.connectionSteps.telegram = status;
+                                if (status === 'success') {
+                                    this.status.telegram_connected = true;
+                                } else if (status === 'failed' || status === 'error' || status === 'warning') {
+                                    this.status.telegram_connected = connected === true;
+                                }
+                            } else if (step === 'account') {
+                                this.connectionSteps.account = status;
+                            }
+                            
+                            if (step === 'error') {
+                                this.connectionSteps.mt5 = 'error';
+                                this.notify(message || 'Startup failed', 'error');
+                            }
+                        } else if (data.type === 'bot_started') {
+                            // Don't override - use actual connection states from data
+                            if (data.data.mt5_connected !== undefined) {
+                                this.status.mt5_connected = data.data.mt5_connected;
+                                this.connectionSteps.mt5 = data.data.mt5_connected ? 'success' : 'failed';
+                            }
+                            if (data.data.telegram_connected !== undefined) {
+                                this.status.telegram_connected = data.data.telegram_connected;
+                                this.connectionSteps.telegram = data.data.telegram_connected ? 'success' : 'failed';
+                            }
+                            this.connectionSteps.account = 'success';
+                            this.status.bot_running = true;
+                            this.addActivity('Bot Started', 'success', 'play');
+                            this.refreshData();
+                            this.refreshPositions();
+                        } else if (data.type === 'reconnect_progress') {
+                            const { service, status, message } = data.data;
+                            if (service === 'mt5') {
+                                if (status === 'connecting') {
+                                    this.connectionSteps.mt5 = 'loading';
+                                } else if (status === 'success') {
+                                    this.status.mt5_connected = true;
+                                    this.connectionSteps.mt5 = 'success';
+                                } else {
+                                    this.connectionSteps.mt5 = 'failed';
+                                }
+                            } else if (service === 'telegram') {
+                                if (status === 'connecting') {
+                                    this.connectionSteps.telegram = 'loading';
+                                } else if (status === 'success') {
+                                    this.status.telegram_connected = true;
+                                    this.connectionSteps.telegram = 'success';
+                                } else {
+                                    this.connectionSteps.telegram = 'failed';
+                                }
+                            }
+                        } else if (data.type === 'signal_received') {
+                            this.addActivity(`Signal: ${data.data.symbol} ${data.data.direction}`, 'success', 'zap');
+                            this.notify(`Signal: ${data.data.symbol} ${data.data.direction}`, 'info');
+                        } else if (data.type === 'trade_created') {
+                            this.addActivity(`Trade: ${data.data.trade?.symbol}`, 'success', 'trending-up');
+                            this.notify(`Trade opened: ${data.data.trade?.symbol}`, 'success');
+                        } else if (data.type === 'signal_rejected') {
+                            this.addActivity(`Rejected: ${data.data.reason}`, 'danger', 'x-circle');
+                        } else if (data.type === 'startup_failed') {
+                            // Handle startup failure - update UI to show failed state
+                            this.status.bot_running = false;
+                            this.startingPhase = null;
+                            
+                            if (data.data.mt5_connected !== undefined) {
+                                this.status.mt5_connected = data.data.mt5_connected;
+                                this.connectionSteps.mt5 = data.data.mt5_connected ? 'success' : 'failed';
+                            }
+                            if (data.data.telegram_connected !== undefined) {
+                                this.status.telegram_connected = data.data.telegram_connected;
+                                this.connectionSteps.telegram = data.data.telegram_connected ? 'success' : 'failed';
+                            }
+                            if (data.data.account_ok !== undefined) {
+                                this.connectionSteps.account = data.data.account_ok ? 'success' : 'failed';
+                            }
+                            
+                            // Show error message
+                            const msg = data.data.message || 'Startup failed';
+                            this.notify(`❌ ${msg}`, 'error');
+                            this.addActivity('Startup Failed', 'danger', 'x-circle');
+                        }
+                    };
+                    
+                    this.ws.onclose = () => {
+                        console.log('WebSocket disconnected, reconnecting...');
+                        setTimeout(() => this.connectWebSocket(), 3000);
+                    };
+                    
+                    this.ws.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                    };
+                },
+                addActivity(title, type, icon) {
+                    this.activities.unshift({
+                        id: Date.now() + Math.random(),
+                        title,
+                        time: new Date().toLocaleTimeString(),
+                        type,
+                        icon
+                    });
+                    if (this.activities.length > 20) {
+                        this.activities.pop();
+                    }
+                    
+                },
+                notify(message, type = 'info') {
+                    const id = this.nextNotifId++;
+                    this.notifications.push({ id, message, type, removing: false });
+                    
+                    // Auto-dismiss after timeout
+                    const timeout = type === 'error' ? 8000 : type === 'warning' ? 6000 : 4000;
+                    setTimeout(() => {
+                        this.dismissNotification(id);
+                    }, timeout);
+                    
+                    // Re-initialize icons for new notification
+                    this.$nextTick(() => {
+                        
+                    });
+                },
+                async loadSettings() {
+                    this.loading.settings = true;
+                    try {
+                        const res = await fetch('/api/settings');
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.telegram) {
+                                this.settings.telegram = {
+                                    ...this.settings.telegram,
+                                    ...data.telegram,
+                                    signal_channels: data.telegram.signal_channels || [],
+                                    signal_channels_str: (data.telegram.signal_channels || []).join(', ')
+                                };
+                            }
+                            if (data.broker) {
+                                this.settings.broker = { ...this.settings.broker, ...data.broker };
+                            }
+                            if (data.trading) {
+                                this.settings.trading = { ...this.settings.trading, ...data.trading };
+                            }
+                            if (data.risk) {
+                                this.settings.risk = { ...this.settings.risk, ...data.risk };
+                            }
+                            this.notify('Settings loaded successfully', 'success');
+                        } else {
+                            this.notify('Failed to load settings', 'error');
+                        }
+                    } catch (e) {
+                        console.error('Load settings error:', e);
+                        this.notify('Failed to load settings', 'error');
+                    } finally {
+                        this.loading.settings = false;
+                        
+                    }
+                },
+                async saveSettings() {
+                    // Validate before saving
+                    if (!this.validateSettings()) {
+                        this.notify('Please fill in all required fields', 'error');
+                        return;
+                    }
+                    
+                    this.loading.settings = true;
+                    try {
+                        // Parse signal channels from string
+                        const signalChannels = this.settings.telegram.signal_channels_str
+                            .split(',')
+                            .map(s => s.trim())
+                            .filter(s => s)
+                            .map(s => parseInt(s) || s);
+                        
+                        const payload = {
+                            telegram: {
+                                ...this.settings.telegram,
+                                signal_channels: signalChannels
+                            },
+                            broker: this.settings.broker,
+                            trading: this.settings.trading,
+                            risk: this.settings.risk
+                        };
+                        
+                        const res = await fetch('/api/settings', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (res.ok) {
+                            this.notify('Settings saved successfully! Restart bot to apply changes.', 'success');
+                            this.addActivity('Settings Updated', 'success', 'settings');
+                            this.settingsErrors = [];
+                        } else {
+                            const data = await res.json();
+                            this.notify(data.detail || 'Failed to save settings', 'error');
+                        }
+                    } catch (e) {
+                        console.error('Save settings error:', e);
+                        this.notify('Failed to save settings', 'error');
+                    } finally {
+                        this.loading.settings = false;
+                    }
+                },
+                validateSettings() {
+                    this.settingsValidated = true;
+                    this.settingsErrors = [];
+                    
+                    // Check Telegram credentials
+                    if (!this.settings.telegram.api_id) {
+                        this.settingsErrors.push('Telegram API ID is required');
+                    }
+                    if (!this.settings.telegram.api_hash) {
+                        this.settingsErrors.push('Telegram API Hash is required');
+                    }
+                    if (!this.settings.telegram.phone_number) {
+                        this.settingsErrors.push('Telegram Phone Number is required');
+                    }
+                    if (!this.settings.telegram.signal_channels_str) {
+                        this.settingsErrors.push('At least one Signal Channel is required');
+                    }
+                    
+                    // Check Broker credentials
+                    if (!this.settings.broker.metaapi_token) {
+                        this.settingsErrors.push('MetaApi Token is required');
+                    }
+                    if (!this.settings.broker.metaapi_account_id) {
+                        this.settingsErrors.push('MetaApi Account ID is required');
+                    }
+                    
+                    
+                    return this.settingsErrors.length === 0;
+                },
+                async testTelegramConnection() {
+                    this.testingTelegram = true;
+                    this.telegramTestResult = null;
+                    try {
+                        const res = await fetch('/api/test/telegram', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                api_id: this.settings.telegram.api_id,
+                                api_hash: this.settings.telegram.api_hash,
+                                phone_number: this.settings.telegram.phone_number
+                            })
+                        });
+                        const data = await res.json();
+                        this.telegramTestResult = {
+                            success: res.ok,
+                            message: data.message || (res.ok ? 'Connection successful!' : 'Connection failed')
+                        };
+                    } catch (e) {
+                        this.telegramTestResult = {
+                            success: false,
+                            message: 'Connection test failed: ' + e.message
+                        };
+                    } finally {
+                        this.testingTelegram = false;
+                        
+                    }
+                },
+                async testBrokerConnection() {
+                    this.testingBroker = true;
+                    this.brokerTestResult = null;
+                    try {
+                        const res = await fetch('/api/test/broker', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                metaapi_token: this.settings.broker.metaapi_token,
+                                metaapi_account_id: this.settings.broker.metaapi_account_id
+                            })
+                        });
+                        const data = await res.json();
+                        this.brokerTestResult = {
+                            success: res.ok,
+                            message: data.message || (res.ok ? 'Connection successful!' : 'Connection failed')
+                        };
+                    } catch (e) {
+                        this.brokerTestResult = {
+                            success: false,
+                            message: 'Connection test failed: ' + e.message
+                        };
+                    } finally {
+                        this.testingBroker = false;
+                        
+                    }
+                },
+                // Navbar methods
+                logout() {
+                    // Close user menu first
+                    this.showUserMenu = false;
+                    
+                    // Perform logout actions
+                    this.loading.stop = true;
+                    fetch('/api/logout', { method: 'POST' })
+                        .then(() => {
+                            window.location.href = '/login';
+                        })
+                        .catch(err => {
+                            console.error('Logout error:', err);
+                            this.notify('Logout error', 'error');
+                            this.loading.stop = false;
+                        });
+                },
+                toggleNavbar() {
+                    this.navbarCollapsed = !this.navbarCollapsed;
+                    // Save preference to localStorage
+                    localStorage.setItem('navbarCollapsed', this.navbarCollapsed);
+                },
+                navigateTo(item) {
+                    this.activeNavItem = item;
+                    this.showUserMenu = false;
+                    // Scroll to top of content
+                    document.querySelector('.content')?.scrollTo(0, 0);
+                }
+            },
+            async mounted() {
+                this.connectWebSocket();
+                
+                // Load settings first to check if setup is needed
+                try {
+                    const settingsRes = await fetch('/api/settings');
+                    if (settingsRes.ok) {
+                        const settingsData = await settingsRes.json();
+                        console.log('Loaded settings:', settingsData);
+                        if (settingsData.telegram) {
+                            this.settings.telegram = {
+                                ...this.settings.telegram,
+                                ...settingsData.telegram,
+                                signal_channels: settingsData.telegram.signal_channels || [],
+                                signal_channels_str: (settingsData.telegram.signal_channels || []).join(', ')
+                            };
+                        }
+                        if (settingsData.broker) {
+                            this.settings.broker = { ...this.settings.broker, ...settingsData.broker };
+                        }
+                        if (settingsData.trading) {
+                            this.settings.trading = { ...this.settings.trading, ...settingsData.trading };
+                        }
+                        if (settingsData.risk) {
+                            this.settings.risk = { ...this.settings.risk, ...settingsData.risk };
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to load settings:', e);
+                }
+                
+                // Initialize Lucide icons after settings load
+                
+                
+                // Check if bot is already running
+                try {
+                    const res = await fetch('/api/status');
+                    const data = await res.json();
+                    
+                    // Always update status
+                    this.status = {
+                        bot_running: data.bot_running || false,
+                        mt5_connected: data.mt5_connected || false,
+                        telegram_connected: data.telegram_connected || false,
+                        uptime_seconds: data.uptime_seconds || 0
+                    };
+                    
+                    if (data.account) {
+                        this.account = {
+                            balance: data.account.balance || 0,
+                            equity: data.account.equity || 0,
+                            margin: data.account.margin || 0,
+                            free_margin: data.account.free_margin || 0,
+                            profit: data.account.profit || 0,
+                            currency: data.account.currency || 'USD',
+                            leverage: data.account.leverage || 0,
+                            server: data.account.server || '',
+                            login: data.account.login || 0,
+                            name: data.account.name || ''
+                        };
+                    }
+                    
+                    if (data.stats) {
+                        this.stats = {
+                            total_trades: data.stats.total_trades || 0,
+                            winning_trades: data.stats.winning_trades || 0,
+                            losing_trades: data.stats.losing_trades || 0,
+                            win_rate: data.stats.win_rate || 0,
+                            total_profit: data.stats.total_profit || 0,
+                            open_trades: data.stats.open_trades || 0,
+                            last_updated: data.stats.last_updated || new Date().toISOString()
+                        };
+                    }
+                    if (data.risk) this.risk = data.risk;
+                    if (data.config) this.config = data.config;
+                    
+                    this.displayUptime = data.uptime_seconds || 0;
+                    
+                    // Use nextTick to ensure DOM is ready
+                    await this.$nextTick();
+                    
+                    // Start uptime counter if bot is running
+                    if (data.bot_running) {
+                        this.startUptimeCounter();
+                    }
+                    
+                    // Always add dashboard loaded activity
+                    this.addActivity('Dashboard loaded', 'success', 'check');
+                    
+                    
+                    // Always try to load positions
+                    await this.refreshPositions();
+                } catch (e) {
+                    console.error('Initial status check failed:', e);
+                    // Still add activity on error
+                    this.addActivity('Dashboard loaded', 'warning', 'alert-circle');
+                }
+                
+                // Refresh data every 10 seconds for real-time updates (reduced from 2s to minimize log noise)
+                setInterval(() => {
+                    this.refreshData();
+                    // Always try to refresh positions
+                    this.refreshPositions();
+                }, 10000);
+                
+                // Sync uptime from server and start local counter if bot is running
+                setInterval(() => {
+                    if (this.status.bot_running && this.status.uptime_seconds) {
+                        this.displayUptime = this.status.uptime_seconds;
+                    }
+                }, 10000);
+                
+                // Firebase real-time listeners
+                if (window.firebaseDB) {
+                    const statusRef = window.firebaseRef(window.firebaseDB, 'status');
+                    window.firebaseOnValue(statusRef, (snapshot) => {
+                        const data = snapshot.val();
+                        if (data) {
+                            this.status = {
+                                ...this.status,
+                                bot_running: data.bot_running,
+                                mt5_connected: data.mt5_connected,
+                                telegram_connected: data.telegram_connected,
+                                uptime_seconds: data.uptime_seconds || 0
+                            };
+                        }
+                    });
+                    
+                    const accountRef = window.firebaseRef(window.firebaseDB, 'account');
+                    window.firebaseOnValue(accountRef, (snapshot) => {
+                        const data = snapshot.val();
+                        if (data) {
+                            this.account = {
+                                balance: data.balance || 0,
+                                equity: data.equity || 0,
+                                margin: data.margin || 0,
+                                free_margin: data.free_margin || 0,
+                                profit: data.profit || 0,
+                                currency: data.currency || 'USD',
+                                leverage: data.leverage || 0,
+                                server: data.server || '',
+                                login: data.login || 0
+                            };
+                        }
+                    });
+                    
+                    const tradesRef = window.firebaseRef(window.firebaseDB, 'trades');
+                    window.firebaseOnValue(tradesRef, (snapshot) => {
+                        const data = snapshot.val();
+                        if (data) {
+                            this.activeTrades = Object.values(data).filter(t => 
+                                t.status === 'active' || t.status === 'pending'
+                            );
+                        }
+                    });
+                    
+                    const statsRef = window.firebaseRef(window.firebaseDB, 'stats');
+                    window.firebaseOnValue(statsRef, (snapshot) => {
+                        const data = snapshot.val();
+                        if (data) {
+                            // Only update from Firebase if it's newer than current stats
+                            const firebaseTimestamp = data.timestamp || data.last_updated;
+                            const currentTimestamp = this.stats.last_updated;
+                            
+                            // If Firebase data is newer or we have no current timestamp, update
+                            if (!currentTimestamp || (firebaseTimestamp && new Date(firebaseTimestamp) >= new Date(currentTimestamp))) {
+                                this.stats = {
+                                    total_trades: data.total_trades || 0,
+                                    winning_trades: data.winning_trades || 0,
+                                    losing_trades: data.losing_trades || 0,
+                                    win_rate: data.win_rate || 0,
+                                    total_profit: data.total_profit || 0,
+                                    open_trades: data.open_trades || 0,
+                                    last_updated: firebaseTimestamp || new Date().toISOString()
+                                };
+                            }
+                        }
+                    });
+                    
+                    // Listen for settings changes
+                    const settingsRef = window.firebaseRef(window.firebaseDB, 'settings');
+                    window.firebaseOnValue(settingsRef, (snapshot) => {
+                        const data = snapshot.val();
+                        if (data) {
+                            // Only update if not currently editing
+                            if (!this.editingField) {
+                                if (data.telegram) {
+                                    this.settings.telegram = {
+                                        ...this.settings.telegram,
+                                        ...data.telegram,
+                                        signal_channels: data.telegram.signal_channels || []
+                                    };
+                                }
+                                if (data.broker) {
+                                    this.settings.broker = { ...this.settings.broker, ...data.broker };
+                                }
+                                if (data.trading) {
+                                    this.settings.trading = { ...this.settings.trading, ...data.trading };
+                                }
+                                if (data.risk) {
+                                    this.settings.risk = { ...this.settings.risk, ...data.risk };
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Initialize Lucide icons once on mount
+                this.initIcons();
+            },
+            updated() {
+                // Disabled: Lucide icon reinitialization conflicts with Vue's virtual DOM
+                // All dynamic icons should use inline SVGs instead of data-lucide
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

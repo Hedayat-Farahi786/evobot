@@ -1,0 +1,27 @@
+[Unit]
+Description=EvoBot Trading Dashboard - 24/7 Signal Listener
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/personal/evobot
+Environment="PATH=/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="AUTO_START_BOT=true"
+ExecStart=/usr/bin/python3 /home/ubuntu/personal/evobot/start_dashboard.py
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Logging
+StandardOutput=append:/home/ubuntu/personal/evobot/logs/evobot.log
+StandardError=append:/home/ubuntu/personal/evobot/logs/evobot_error.log
+
+# Keep running
+KillMode=mixed
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

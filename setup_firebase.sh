@@ -1,0 +1,38 @@
+#!/bin/bash
+
+echo "🔥 Setting up Firebase Realtime Database integration..."
+
+# Install Firebase Admin SDK
+echo "📦 Installing firebase-admin..."
+pip install firebase-admin
+
+echo ""
+echo "✅ Firebase dependencies installed!"
+echo ""
+echo "📝 Next steps:"
+echo "1. Go to Firebase Console: https://console.firebase.google.com/"
+echo "2. Select your project: evobot-8"
+echo "3. Go to Project Settings > Service Accounts"
+echo "4. Click 'Generate New Private Key'"
+echo "5. Download the JSON file"
+echo "6. Extract the following values and add to your .env file:"
+echo "   - FIREBASE_PRIVATE_KEY_ID"
+echo "   - FIREBASE_PRIVATE_KEY"
+echo "   - FIREBASE_CLIENT_EMAIL"
+echo "   - FIREBASE_CLIENT_ID"
+echo ""
+echo "7. Enable Realtime Database:"
+echo "   - Go to Build > Realtime Database"
+echo "   - Click 'Create Database'"
+echo "   - Choose location (us-central1)"
+echo "   - Start in test mode (or configure rules)"
+echo ""
+echo "8. Update database rules for security:"
+echo "   {"
+echo "     \"rules\": {"
+echo "       \".read\": \"auth != null\","
+echo "       \".write\": \"auth != null\""
+echo "     }"
+echo "   }"
+echo ""
+echo "🚀 Ready to start the dashboard with Firebase!"

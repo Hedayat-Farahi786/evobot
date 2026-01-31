@@ -1,0 +1,79 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║                    ✅ DEPENDENCIES INSTALLED SUCCESSFULLY!                   ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+🎉 Great! All dependencies are now installed.
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  📝 NEXT STEPS                                                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  1️⃣  CONFIGURE YOUR .env FILE
+  
+      nano .env
+      
+      Add your credentials:
+      - TELEGRAM_API_ID (from https://my.telegram.org/apps)
+      - TELEGRAM_API_HASH (from https://my.telegram.org/apps)
+      - TELEGRAM_PHONE (+1234567890)
+      - SIGNAL_CHANNELS (channels to monitor)
+
+  2️⃣  START THE DASHBOARD
+  
+      python start_dashboard.py
+      
+      OR
+      
+      ./run_dashboard.sh
+
+  3️⃣  OPEN YOUR BROWSER
+  
+      http://localhost:8080
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  ⚠️  IMPORTANT: LINUX LIMITATION                                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  You're on Linux (Ubuntu). MetaTrader5 is Windows-only.
+  
+  ✅ WHAT WORKS:
+     - Web dashboard (full functionality)
+     - Telegram signal monitoring
+     - Signal parsing and testing
+     - Configuration management
+     - System monitoring
+  
+  ❌ WHAT DOESN'T WORK:
+     - Actual MT5 trading (requires Windows)
+  
+  💡 SOLUTION:
+     - Use this for TESTING and DEVELOPMENT
+     - Deploy to Windows VPS for PRODUCTION TRADING
+     - See LINUX_SETUP.md for details
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  🚀 START NOW                                                                ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  Run this command:
+  
+      python start_dashboard.py
+  
+  Then open: http://localhost:8080
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  📚 HELPFUL GUIDES                                                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  📖 START_HERE.md          - Quick start guide
+  📖 LINUX_SETUP.md         - Linux-specific setup
+  📖 DASHBOARD_GUIDE.md     - Complete dashboard guide
+  📖 READY_TO_USE.txt       - Full feature overview
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                Ready to start? Run: python start_dashboard.py
+
+═══════════════════════════════════════════════════════════════════════════════

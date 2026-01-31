@@ -1,0 +1,265 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    EVOBOT 3-POSITION TRADING SYSTEM                          ║
+║                          QUICK REFERENCE GUIDE                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+🚀 QUICK START (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+  1. Start Dashboard:
+     $ python3 start_dashboard.py
+
+  2. Open Browser:
+     http://localhost:8080
+
+  3. Send Test Signal:
+     EURUSD BUY
+     Entry: 1.0850
+     SL: 1.0800
+     TP1: 1.0900
+     TP2: 1.0950
+     TP3: 1.1000
+
+  4. Verify in Dashboard:
+     - Go to "Open Positions" tab
+     - Should see 3 positions
+     - Click "Group" to see grouped view
+     - Click "List" to see flat table
+
+  5. Watch Logs:
+     $ tail -f logs/evobot.log
+
+✅ IMPLEMENTATION CHECKLIST
+─────────────────────────────────────────────────────────────────────────────
+
+  Core Trading Logic:
+    ✅ 3 positions created per signal
+    ✅ Each position has unique TP (TP1, TP2, TP3)
+    ✅ Entry price stored per position
+    ✅ SL moves to each position's entry when TP1 hits
+
+  Signal Capture:
+    ✅ Multi-format parsing (text, emoji, abbreviated)
+    ✅ Works from all Telegram channels
+    ✅ Extracts: Symbol, Direction, Entry, SL, TP1, TP2, TP3
+
+  Dashboard UI:
+    ✅ Grouped view (collapsible signal groups)
+    ✅ List view (flat table all positions)
+    ✅ View toggle (Group ↔ List)
+    ✅ Real-time position updates
+    ✅ P&L calculations
+
+🎯 COMPLETE TRADING FLOW
+─────────────────────────────────────────────────────────────────────────────
+
+  Signal arrives:
+    📨 "EURUSD BUY, Entry 1.0850, SL 1.0800, TP1 1.0900, TP2 1.0950, TP3 1.1000"
+
+  System processes:
+    1️⃣  Parser extracts all details
+    2️⃣  Risk manager validates
+    3️⃣  Trade manager creates 3 orders:
+        - Order 1: TP = 1.0900 (TP1)
+        - Order 2: TP = 1.0950 (TP2)
+        - Order 3: TP = 1.1000 (TP3)
+        All with same Entry (1.0850) and SL (1.0800)
+
+  Display on dashboard:
+    [TradingChannel Signal Group]
+    ├─ Position 1: Entry 1.0850 → TP1 1.0900 ✅
+    ├─ Position 2: Entry 1.0850 → TP2 1.0950
+    └─ Position 3: Entry 1.0850 → TP3 1.1000
+
+  When TP1 hits (price = 1.0900):
+    1. Position 1 CLOSES (profit taken)
+    2. Position 2 SL: 1.0800 → 1.0850 (moved to entry!)
+    3. Position 3 SL: 1.0800 → 1.0850 (moved to entry!)
+
+  Remaining positions continue:
+    - Position 2 targeting 1.0950, protected at 1.0850
+    - Position 3 targeting 1.1000, protected at 1.0850
+
+📊 VIEW TOGGLE
+─────────────────────────────────────────────────────────────────────────────
+
+  Grouped View (Default):
+    ┌──────────────────────────────────────┐
+    │ 📊 TradingChannel                    │
+    │ ├─ 3 positions | +$50.00 P&L        │
+    │ └─ ▼ Click to expand                │
+    │    ├─ Pos 1: Entry=1.0850 TP=1.0900 │
+    │    ├─ Pos 2: Entry=1.0850 TP=1.0950 │
+    │    └─ Pos 3: Entry=1.0850 TP=1.1000 │
+    └──────────────────────────────────────┘
+
+  List View:
+    ┌────────────────────────────────────────────────┐
+    │ Ticket │ Symbol │ Type │ Entry │ TP │ P&L │ SL │
+    ├────────────────────────────────────────────────┤
+    │ 12345  │ EURUSD │ BUY  │ 1.085 │... │ +50 │... │
+    │ 12346  │ EURUSD │ BUY  │ 1.085 │... │ +75 │... │
+    │ 12347  │ EURUSD │ BUY  │ 1.085 │... │ +25 │... │
+    └────────────────────────────────────────────────┘
+
+🔍 KEY FEATURES
+─────────────────────────────────────────────────────────────────────────────
+
+  ✅ Signal Parsing
+     - Multi-format support (text, emoji, abbreviated)
+     - All Telegram channel formats recognized
+     - Extracts all trading parameters
+
+  ✅ Position Management
+     - 3 positions per signal
+     - Individual entry tracking
+     - Unique TP per position
+
+  ✅ Breakeven Logic
+     - TP1 closes Position 1
+     - Position 2 SL → Position 2's entry
+     - Position 3 SL → Position 3's entry
+     - Remaining positions continue trading
+
+  ✅ Dashboard Display
+     - Real-time position updates
+     - Grouped and list views
+     - View preference saved
+     - Quick stats and P&L
+
+  ✅ Risk Management
+     - Stop loss on all positions
+     - Spread monitoring
+     - Drawdown limits
+     - Trading hours restrictions
+
+🛠️ CONFIGURATION
+─────────────────────────────────────────────────────────────────────────────
+
+  Environment Variables (.env):
+    TELEGRAM_API_ID=YOUR_ID
+    TELEGRAM_API_HASH=YOUR_HASH
+    TELEGRAM_PHONE=YOUR_PHONE
+    SIGNAL_CHANNELS=channel1,channel2,channel3
+
+  Trading Settings (dashboard or code):
+    - Default lot size: 0.10
+    - TP1 close: 50%
+    - TP2 close: 30%
+    - TP3 close: 20%
+    - Move SL to breakeven at TP1: True
+    - Breakeven offset: 0 pips
+
+📋 MONITOR & LOGS
+─────────────────────────────────────────────────────────────────────────────
+
+  Watch Signals:
+    $ grep "Signal received" logs/evobot.log
+
+  Watch Positions Created:
+    $ grep "Order placed" logs/evobot.log
+
+  Watch Breakeven:
+    $ grep "Moving remaining" logs/evobot.log
+
+  Watch P&L Updates:
+    $ grep "P&L" logs/evobot.log
+
+  Real-time Monitoring:
+    $ tail -f logs/evobot.log | grep -E "TP|Entry|breakeven"
+
+⚡ TROUBLESHOOTING
+─────────────────────────────────────────────────────────────────────────────
+
+  Dashboard won't start:
+    $ pkill -f "start_dashboard.py"
+    $ python3 start_dashboard.py
+
+  No signals captured:
+    - Check channels configured in Settings
+    - Verify Telegram connection in logs
+    - Test signal parser: python3 validate_trading_logic.py
+
+  Only 1 position created:
+    - Ensure signal has all 3 TPs
+    - Check parser extracts TP1, TP2, TP3
+    - Look in logs for TP extraction
+
+  View toggle not working:
+    - Clear browser cache (Ctrl+Shift+Delete)
+    - Restart dashboard
+    - Check browser console (F12)
+
+  SL not moving on TP hit:
+    - Verify entry_price stored in position_info
+    - Check move_sl_to_breakeven_at_tp1 setting
+    - Review logs for "Moving remaining positions"
+
+📚 DOCUMENTATION
+─────────────────────────────────────────────────────────────────────────────
+
+  DEPLOYMENT_CHECKLIST.md
+    → Quick deployment & testing reference
+
+  E2E_TESTING_GUIDE.md
+    → Comprehensive step-by-step testing guide
+
+  IMPLEMENTATION_COMPLETE.md
+    → Technical implementation details
+
+  SYSTEM_STATUS_REPORT.md
+    → Complete system status & quality metrics
+
+  validate_trading_logic.py
+    → Run automated validation tests
+
+✅ SUCCESS CRITERIA
+─────────────────────────────────────────────────────────────────────────────
+
+  All of these should be ✅:
+
+  [ ] Dashboard starts without errors
+  [ ] Signals appear in feed
+  [ ] 3 positions created per signal
+  [ ] Each position has different TP
+  [ ] Positions grouped by signal
+  [ ] View toggle works (Group ↔ List)
+  [ ] P&L calculates correctly
+  [ ] Logs show all operations
+  [ ] TP1 hit closes position 1
+  [ ] SL moves to entry for remaining positions
+  [ ] System remains stable
+  [ ] Multiple signals independent
+
+🎯 NEXT STEPS
+─────────────────────────────────────────────────────────────────────────────
+
+  1. DEPLOY
+     python3 start_dashboard.py
+
+  2. TEST
+     - Send signals to Telegram
+     - Verify 3 positions created
+     - Toggle Group/List views
+     - Watch breakeven logic
+
+  3. MONITOR
+     - Watch logs: tail -f logs/evobot.log
+     - Check dashboard in real-time
+     - Verify P&L calculations
+
+  4. ADJUST (if needed)
+     - Settings → Trading parameters
+     - Settings → Telegram channels
+     - Settings → Notifications
+
+  5. GO LIVE
+     - Deploy on real account
+     - Monitor continuously
+     - Adjust risk limits as needed
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  Status: ✅ PRODUCTION READY                                                 ║
+║  Last Updated: Jan 30, 2026                                                  ║
+║  Version: 1.0.0                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝

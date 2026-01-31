@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - EvoBot</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root {
+            --bg: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-card: #f0f0f0;
+            --text: #1a1a1a;
+            --text-secondary: #666;
+            --text-muted: #999;
+            --border: #e0e0e0;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+        /* Dark theme */
+        :root.dark-theme {
+            --bg: #0a0a0a;
+            --bg-secondary: #111;
+            --bg-card: #161616;
+            --text: #fff;
+            --text-secondary: #888;
+            --text-muted: #555;
+            --border: #222;
+        }
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .theme-toggle:hover { background: var(--border); }
+        .theme-toggle svg { width: 18px; height: 18px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            height: 100%;
+        }
+        body {
+            display: flex;
+            flex-direction: row;
+        }
+        #app {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            min-height: 100vh;
+        }
+        .login-left {
+            flex: 1;
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px;
+            position: relative;
+        }
+        .login-left::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.02) 0%, transparent 70%);
+        }
+        .brand { position: relative; z-index: 1; max-width: 500px; }
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 48px;
+        }
+        .brand-logo-icon {
+            width: 44px;
+            height: 44px;
+            background: #fff;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #000;
+        }
+        .brand-logo-text { font-size: 22px; font-weight: 700; }
+        .brand h1 {
+            font-size: 44px;
+            font-weight: 700;
+            line-height: 1.15;
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+        }
+        .brand h1 span { color: var(--text-secondary); }
+        .brand p {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+        .features { display: flex; flex-direction: column; gap: 14px; }
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .feature-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #fff;
+        }
+        .login-right {
+            width: 480px;
+            min-width: 480px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px 40px;
+            border-left: 1px solid var(--border);
+            background: var(--bg);
+        }
+        .login-box { width: 100%; max-width: 360px; }
+        .login-header { margin-bottom: 32px; }
+        .login-header h2 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+        .login-header p { font-size: 14px; color: var(--text-secondary); }
+        .telegram-section { margin-top: 24px; }
+        .user-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .user-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #0088cc;
+            overflow: hidden;
+        }
+        .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .user-info h4 { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+        .user-info p { font-size: 13px; color: var(--text-secondary); }
+        .btn {
+            width: 100%;
+            padding: 14px 20px;
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #f0f0f0; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn i { font-size: 18px; }
+        .btn img.telegram-logo { width: 22px; height: 22px; border-radius: 4px; }
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(0,0,0,0.1);
+            border-top-color: #000;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .no-session {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .no-session-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            background: var(--bg-card);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: var(--text-muted);
+        }
+        .no-session h3 { font-size: 16px; margin-bottom: 8px; }
+        .no-session p { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+        .setup-cmd {
+            background: var(--bg-card);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--success);
+        }
+        .alert {
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .alert.error { background: rgba(239,68,68,0.1); color: var(--error); }
+        .alert.success { background: rgba(34,197,94,0.1); color: var(--success); }
+        .loading-box { text-align: center; padding: 40px 0; }
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--text);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        .loading-box p { color: var(--text-secondary); font-size: 14px; }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        @media (max-width: 960px) {
+            #app { flex-direction: column; }
+            .login-left { display: none; }
+            .login-right { width: 100%; min-width: 100%; border: none; padding: 40px 24px; min-height: 100vh; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Theme Toggle -->
+        <button class="theme-toggle" @click="toggleTheme" :title="isDarkTheme ? 'Switch to light mode' : 'Switch to dark mode'">
+            <svg v-if="isDarkTheme" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+        
+        <div class="login-left">
+            <div class="brand">
+                <div class="brand-logo">
+                    <div class="brand-logo-icon"><i class="fas fa-robot"></i></div>
+                    <span class="brand-logo-text">EvoBot</span>
+                </div>
+                <h1>Automated Trading<br><span>Made Simple</span></h1>
+                <p>Connect your Telegram account to access your personal trading dashboard. Monitor signals, manage positions, and control your bot.</p>
+                <div class="features">
+                    <div class="feature">
+                        <div class="feature-icon"><i class="fas fa-bolt"></i></div>
+                        <span>Real-time signal detection from Telegram channels</span>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+                        <span>Secure MetaTrader 5 integration via MetaAPI</span>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                        <span>Advanced risk management & position sizing</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="login-right">
+            <div class="login-box">
+                <div class="login-header">
+                    <h2>Welcome back</h2>
+                    <p>Sign in with your Telegram account</p>
+                </div>
+                <div class="telegram-section">
+                    <div v-if="checkingSession" class="loading-box">
+                        <div class="loading-spinner"></div>
+                        <p>Checking session...</p>
+                    </div>
+                    <div v-else-if="telegramAvailable">
+                        <div class="user-card" v-if="telegramUser">
+                            <div class="user-avatar">
+                                <img v-if="telegramUser.photo_path" :src="'/api/telegram/user/photo'">
+                                <i v-else class="fab fa-telegram"></i>
+                            </div>
+                            <div class="user-info">
+                                <h4>{{ telegramUser.first_name }} {{ telegramUser.last_name }}</h4>
+                                <p>@{{ telegramUser.username || telegramUser.phone }}</p>
+                            </div>
+                        </div>
+                        <button @click="telegramLogin" class="btn" :disabled="loading">
+                            <span v-if="loading" class="spinner"></span>
+                            <img v-else src="/assets/logos/telegram.jpg" alt="Telegram" class="telegram-logo">
+                            <span>{{ loading ? 'Signing in...' : 'Continue with Telegram' }}</span>
+                        </button>
+                    </div>
+                    <div v-else class="no-session">
+                        <div class="no-session-icon"><i class="fab fa-telegram"></i></div>
+                        <h3>No Telegram Session</h3>
+                        <p>Set up your Telegram connection first</p>
+                        <div class="setup-cmd">python3 auth_telegram.py</div>
+                    </div>
+                </div>
+                <div v-if="error" class="alert error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>{{ error }}</span>
+                </div>
+                <div v-if="success" class="alert success">
+                    <i class="fas fa-check-circle"></i>
+                    <span>{{ success }}</span>
+                </div>
+                <div class="footer">
+                    <p>&copy; 2026 EvoBot Trading Platform</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    error: '',
+                    success: '',
+                    loading: false,
+                    checkingSession: true,
+                    telegramAvailable: false,
+                    telegramUser: null,
+                    isDarkTheme: false
+                };
+            },
+            async mounted() {
+                // Initialize theme from localStorage (default to light)
+                const savedTheme = localStorage.getItem('evobot-theme');
+                this.isDarkTheme = savedTheme === 'dark';
+                if (this.isDarkTheme) {
+                    document.documentElement.classList.add('dark-theme');
+                } else {
+                    document.documentElement.classList.remove('dark-theme');
+                }
+                
+                const token = localStorage.getItem('token');
+                if (token) { window.location.href = '/'; return; }
+                try {
+                    const res = await fetch('/api/auth/telegram/status');
+                    const data = await res.json();
+                    if (data.has_session && data.user) {
+                        this.telegramAvailable = true;
+                        this.telegramUser = data.user;
+                    }
+                } catch (e) { console.log('Telegram auth check failed'); }
+                this.checkingSession = false;
+            },
+            methods: {
+                toggleTheme() {
+                    this.isDarkTheme = !this.isDarkTheme;
+                    if (this.isDarkTheme) {
+                        document.documentElement.classList.add('dark-theme');
+                    } else {
+                        document.documentElement.classList.remove('dark-theme');
+                    }
+                    localStorage.setItem('evobot-theme', this.isDarkTheme ? 'dark' : 'light');
+                },
+                async telegramLogin() {
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const res = await fetch('/api/auth/telegram/login', { method: 'POST' });
+                        const data = await res.json();
+                        if (!res.ok) {
+                            this.error = data.detail || 'Login failed';
+                            this.loading = false;
+                            return;
+                        }
+                        localStorage.setItem('token', data.access_token);
+                        localStorage.setItem('refresh_token', data.refresh_token);
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                        this.success = 'Login successful!';
+                        setTimeout(() => { window.location.href = '/'; }, 500);
+                    } catch (e) {
+                        this.error = 'Connection error';
+                        this.loading = false;
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

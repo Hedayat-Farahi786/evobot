@@ -1,0 +1,75 @@
+# EvoBot Systemd Service Configuration
+# Copy this file to /etc/systemd/system/evobot.service
+# Then enable and start the service
+
+[Unit]
+Description=EvoBot Telegram-to-Broker Copy Trading Bot
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+Group=YOUR_USERNAME
+WorkingDirectory=/path/to/evobot
+Environment="PATH=/path/to/evobot/venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/path/to/evobot/venv/bin/python /path/to/evobot/main.py
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# Logging
+StandardOutput=append:/var/log/evobot/stdout.log
+StandardError=append:/var/log/evobot/stderr.log
+
+# Security hardening (optional)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/path/to/evobot/logs /path/to/evobot/data
+
+[Install]
+WantedBy=multi-user.target
+
+# ============================================
+# Installation Instructions:
+# ============================================
+#
+# 1. Edit this file and replace:
+#    - YOUR_USERNAME with your Linux username
+#    - /path/to/evobot with actual path
+#
+# 2. Create log directory:
+#    sudo mkdir -p /var/log/evobot
+#    sudo chown YOUR_USERNAME:YOUR_USERNAME /var/log/evobot
+#
+# 3. Copy service file:
+#    sudo cp evobot.service /etc/systemd/system/
+#
+# 4. Reload systemd:
+#    sudo systemctl daemon-reload
+#
+# 5. Enable service (start on boot):
+#    sudo systemctl enable evobot
+#
+# 6. Start service:
+#    sudo systemctl start evobot
+#
+# 7. Check status:
+#    sudo systemctl status evobot
+#
+# 8. View logs:
+#    sudo journalctl -u evobot -f
+#    tail -f /var/log/evobot/stdout.log
+#
+# 9. Stop service:
+#    sudo systemctl stop evobot
+#
+# 10. Restart service:
+#     sudo systemctl restart evobot
+#

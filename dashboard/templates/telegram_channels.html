@@ -1,0 +1,213 @@
+<!-- Telegram Channels Component with Profile Images -->
+<style>
+.telegram-channels-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.telegram-channels-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+}
+
+.telegram-channels-body {
+    padding: 20px;
+}
+
+.channel-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+}
+
+.channel-card:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.channel-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 20px;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.channel-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.channel-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.channel-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.channel-verified {
+    color: #3b82f6;
+}
+
+.channel-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.channel-id {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.channel-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 4px;
+    color: #3b82f6;
+}
+
+.channel-stats {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.loading-skeleton {
+    background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-hover) 50%, var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 10px;
+    height: 88px;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+</style>
+
+<div class="telegram-channels-card">
+    <div class="telegram-channels-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+        <h3>Monitored Telegram Channels</h3>
+        <button class="btn btn-sm" @click="refreshChannels" :disabled="loadingChannels">
+            <svg v-if="loadingChannels" class="spinner" width="12" height="12"></svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        </button>
+    </div>
+    <div class="telegram-channels-body">
+        <!-- Loading State -->
+        <div v-if="loadingChannels && telegramChannels.length === 0">
+            <div class="loading-skeleton" v-for="i in 3" :key="'skeleton-' + i"></div>
+        </div>
+        
+        <!-- Channels List -->
+        <div v-else-if="telegramChannels.length > 0">
+            <div class="channel-card" v-for="channel in telegramChannels" :key="channel.id">
+                <div class="channel-avatar">
+                    <img v-if="channel.photo_path" :src="`/api/telegram/channel/${channel.id}/photo`" :alt="channel.title">
+                    <span v-else>{{ getInitials(channel.title) }}</span>
+                </div>
+                <div class="channel-info">
+                    <div class="channel-title">
+                        {{ channel.title }}
+                        <svg v-if="channel.verified" class="channel-verified" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div class="channel-meta">
+                        <span class="channel-id">ID: {{ channel.id }}</span>
+                        <span class="channel-type">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            {{ channel.type }}
+                        </span>
+                        <span v-if="channel.participants_count" class="channel-stats">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            {{ formatNumber(channel.participants_count) }}
+                        </span>
+                        <span v-if="channel.username" style="color: var(--accent);">@{{ channel.username }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Empty State -->
+        <div v-else class="empty-state" style="padding: 40px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+            <div style="margin-top: 12px;">No channels configured</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Add signal channels in settings to see them here</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add to your Vue app methods:
+/*
+async refreshChannels() {
+    if (!this.status.telegram_connected) {
+        this.notify('Telegram not connected', 'warning');
+        return;
+    }
+    
+    this.loadingChannels = true;
+    try {
+        const res = await fetch('/api/telegram/channels');
+        if (!res.ok) throw new Error('Failed to fetch channels');
+        const data = await res.json();
+        this.telegramChannels = data.channels || [];
+    } catch (e) {
+        console.error('Channels error:', e);
+        this.notify('Failed to load channel info', 'error');
+    } finally {
+        this.loadingChannels = false;
+    }
+},
+
+getInitials(name) {
+    if (!name) return '?';
+    return name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+},
+
+formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+*/
+</script>
