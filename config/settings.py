@@ -29,31 +29,54 @@ class TelegramConfig:
     
     @property
     def api_id(self) -> int:
+        # Prioritize .env for auth credentials
+        env_val = os.getenv("TELEGRAM_API_ID", "").strip()
+        if env_val:
+            try:
+                return int(env_val)
+            except ValueError:
+                pass
+                
         fs = get_firebase_settings()
         if fs and fs._initialized:
             return fs.telegram_api_id
-        return int(os.getenv("TELEGRAM_API_ID", "0"))
+        return 0
     
     @property
     def api_hash(self) -> str:
+        # Prioritize .env for auth credentials
+        env_val = os.getenv("TELEGRAM_API_HASH", "").strip()
+        if env_val:
+            return env_val
+            
         fs = get_firebase_settings()
         if fs and fs._initialized:
             return fs.telegram_api_hash
-        return os.getenv("TELEGRAM_API_HASH", "")
+        return ""
     
     @property
     def phone_number(self) -> str:
+        # Prioritize .env for auth credentials
+        env_val = os.getenv("TELEGRAM_PHONE", "").strip()
+        if env_val:
+            return env_val
+            
         fs = get_firebase_settings()
         if fs and fs._initialized:
             return fs.telegram_phone
-        return os.getenv("TELEGRAM_PHONE", "")
+        return ""
     
     @property
     def session_name(self) -> str:
+        # Prioritize .env for session name
+        env_val = os.getenv("TELEGRAM_SESSION", "").strip()
+        if env_val:
+            return env_val
+            
         fs = get_firebase_settings()
         if fs and fs._initialized:
             return fs.get("telegram", "session_name", "evobot_session")
-        return os.getenv("TELEGRAM_SESSION", "evobot_session")
+        return "evobot_session"
     
     @property
     def signal_channels(self) -> List[str]:

@@ -91,33 +91,27 @@ class FirebaseSettings:
         logger.info("Firebase settings initialized")
         
     def _load_settings(self):
-        """Load settings from Firebase, falling back to defaults/env"""
+        """Load settings from Firebase only"""
         try:
-            # Try to load from Firebase
             if self._db_ref:
                 firebase_settings = self._db_ref.child('settings').get()
                 if firebase_settings:
                     self._settings = firebase_settings
                     logger.info("Settings loaded from Firebase")
-                    self._save_local_cache()
+                    return
+                else:
+                    # First time - initialize from env and save to Firebase
+                    logger.info("No settings in Firebase - initializing from environment")
+                    self._settings = self._get_defaults_with_env()
+                    self._save_to_firebase()
                     return
             
-            # Try to load from local cache
-            if os.path.exists(self._local_cache_file):
-                with open(self._local_cache_file, 'r') as f:
-                    self._settings = json.load(f)
-                    logger.info("Settings loaded from local cache")
-                    return
+            logger.warning("Firebase not available - using empty settings")
+            self._settings = json.loads(json.dumps(DEFAULT_SETTINGS))
                     
         except Exception as e:
             logger.error(f"Error loading settings from Firebase: {e}")
-        
-        # Fall back to defaults merged with environment variables
-        self._settings = self._get_defaults_with_env()
-        logger.info("Using default settings with environment overrides")
-        
-        # Save to Firebase for future use
-        self._save_to_firebase()
+            self._settings = json.loads(json.dumps(DEFAULT_SETTINGS))
         
     def _get_defaults_with_env(self) -> Dict[str, Any]:
         """Get default settings, overriding with environment variables"""
@@ -128,7 +122,7 @@ class FirebaseSettings:
             ("telegram", "api_id"): ("TELEGRAM_API_ID", int),
             ("telegram", "api_hash"): ("TELEGRAM_API_HASH", str),
             ("telegram", "phone_number"): ("TELEGRAM_PHONE", str),
-            ("telegram", "signal_channels"): ("SIGNAL_CHANNELS", lambda x: x.split(",") if x else []),
+            ("telegram", "signal_channels"): ("SIGNAL_CHANNELS", lambda x: [c.strip() for c in x.split(",")] if x else []),
             ("telegram", "notification_channel"): ("NOTIFICATION_CHANNEL", str),
             ("broker", "metaapi_token"): ("METAAPI_TOKEN", str),
             ("broker", "metaapi_account_id"): ("METAAPI_ACCOUNT_ID", str),
@@ -156,25 +150,18 @@ class FirebaseSettings:
     def _save_to_firebase(self):
         """Save current settings to Firebase"""
         if not self._db_ref:
+            logger.warning("Cannot save settings - Firebase not initialized")
             return
         try:
             self._db_ref.child('settings').set({
                 **self._settings,
                 '_updated_at': datetime.utcnow().isoformat()
             })
-            self._save_local_cache()
             logger.info("Settings saved to Firebase")
         except Exception as e:
             logger.error(f"Error saving settings to Firebase: {e}")
     
-    def _save_local_cache(self):
-        """Save settings to local cache file"""
-        try:
-            os.makedirs(os.path.dirname(self._local_cache_file), exist_ok=True)
-            with open(self._local_cache_file, 'w') as f:
-                json.dump(self._settings, f, indent=2)
-        except Exception as e:
-            logger.error(f"Error saving local cache: {e}")
+
     
     def get(self, section: str, key: str, default=None):
         """Get a setting value"""
@@ -217,7 +204,16 @@ class FirebaseSettings:
     
     def reload_from_firebase(self):
         """Force reload settings from Firebase"""
-        self._load_settings()
+        if not self._db_ref:
+            logger.warning("Cannot reload - Firebase not initialized")
+            return
+        try:
+            firebase_settings = self._db_ref.child('settings').get()
+            if firebase_settings:
+                self._settings = firebase_settings
+                logger.info("Settings reloaded from Firebase")
+        except Exception as e:
+            logger.error(f"Error reloading from Firebase: {e}")
     
     # Convenience properties for common settings
     @property

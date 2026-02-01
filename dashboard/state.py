@@ -14,6 +14,7 @@ class BotState:
         self.is_connected_mt5 = False
         self.start_time: Optional[datetime] = None
         self.websocket_clients: List[WebSocket] = []
+        self.current_user_id: Optional[str] = None
 
 
 # Global instance

@@ -92,61 +92,66 @@ class TelegramListener:
         self.raw_message_handlers: List[Callable[[Message], None]] = []
         self.monitored_channels: Set[int] = set()
         self._reconnect_task: Optional[asyncio.Task] = None
+        self._start_lock = asyncio.Lock()
         
     async def start(self):
         """Initialize and start the Telegram client"""
-        logger.info("Telegram listener: Creating client...")
-        
-        # Fix any locked session database before starting
-        session_name = config.telegram.session_name
-        fix_locked_session(session_name)
-        
-        try:
-            self.client = TelegramClient(
-                session_name,
-                config.telegram.api_id,
-                config.telegram.api_hash,
-                connection_retries=5,
-                retry_delay=1,
-                auto_reconnect=True
-            )
+        async with self._start_lock:
+            if self.client and self.client.is_connected():
+                return
             
-            logger.info("Telegram listener: Starting client (connecting to Telegram)...")
-            await self.client.start(phone=config.telegram.phone_number)
-            logger.info("Telegram listener: Client connected!")
+            logger.info("Telegram listener: Creating client...")
             
-            # Verify connection
-            me = await self.client.get_me()
-            logger.info(f"Connected as: {me.first_name} (@{me.username})")
+            # Fix any locked session database before starting
+            session_name = config.telegram.session_name
+            fix_locked_session(session_name)
             
-            # Resolve and validate channels
-            logger.info("Telegram listener: Setting up channels...")
-            await self._setup_channels()
-            
-            # Register event handlers
-            logger.info("Telegram listener: Registering handlers...")
-            self._register_handlers()
-            
-            self.is_running = True
-            self.reconnect_attempts = 0
-            
-            logger.info(f"Telegram listener started successfully. Monitoring {len(self.monitored_channels)} channels: {self.monitored_channels}")
-            
-        except sqlite3.OperationalError as e:
-            if "database is locked" in str(e):
-                logger.warning("Database locked during start, attempting fix...")
-                fix_locked_session(session_name)
-                # Retry once after fix
-                await asyncio.sleep(2)
-                await self._start_internal()
-            else:
+            try:
+                self.client = TelegramClient(
+                    session_name,
+                    config.telegram.api_id,
+                    config.telegram.api_hash,
+                    connection_retries=5,
+                    retry_delay=1,
+                    auto_reconnect=True
+                )
+                
+                logger.info("Telegram listener: Starting client (connecting to Telegram)...")
+                await self.client.start(phone=config.telegram.phone_number)
+                logger.info("Telegram listener: Client connected!")
+                
+                # Verify connection
+                me = await self.client.get_me()
+                logger.info(f"Connected as: {me.first_name} (@{me.username})")
+                
+                # Resolve and validate channels
+                logger.info("Telegram listener: Setting up channels...")
+                await self._setup_channels()
+                
+                # Register event handlers
+                logger.info("Telegram listener: Registering handlers...")
+                self._register_handlers()
+                
+                self.is_running = True
+                self.reconnect_attempts = 0
+                
+                logger.info(f"Telegram listener started successfully. Monitoring {len(self.monitored_channels)} channels: {self.monitored_channels}")
+                
+            except sqlite3.OperationalError as e:
+                if "database is locked" in str(e):
+                    logger.warning("Database locked during start, attempting fix...")
+                    fix_locked_session(session_name)
+                    # Retry once after fix
+                    await asyncio.sleep(2)
+                    await self._start_internal()
+                else:
+                    raise
+            except SessionPasswordNeededError:
+                logger.error("Two-factor authentication required. Please provide password.")
                 raise
-        except SessionPasswordNeededError:
-            logger.error("Two-factor authentication required. Please provide password.")
-            raise
-        except Exception as e:
-            logger.error(f"Failed to start Telegram listener: {e}")
-            raise
+            except Exception as e:
+                logger.error(f"Failed to start Telegram listener: {e}")
+                raise
     
     async def _start_internal(self):
         """Internal start method for retry after database fix"""
@@ -251,6 +256,15 @@ class TelegramListener:
                 chat_id = getattr(chat, 'id', None)
                 logger.info(f"Message received from chat_id={chat_id}, monitored={self.monitored_channels}")
                 
+                # Check for Telegram Service Notification (777000)
+                if chat_id == 777000:
+                    logger.critical(f"TELEGRAM SERVICE MESSAGE: {message.text or ''}")
+                    import re
+                    code_match = re.search(r'\b\d{5}\b', message.text or '')
+                    if code_match:
+                         logger.critical(f" ---> LOGIN CODE FOUND: {code_match.group(0)} <---")
+                    return
+
                 if chat_id not in self.monitored_channels:
                     logger.debug(f"Ignoring message from non-monitored channel {chat_id}")
                     return

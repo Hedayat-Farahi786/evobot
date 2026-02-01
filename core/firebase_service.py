@@ -20,6 +20,15 @@ class FirebaseService:
     def initialize(self):
         """Initialize Firebase Admin SDK"""
         try:
+            # Check if Firebase credentials are configured
+            private_key = os.getenv("FIREBASE_PRIVATE_KEY", "")
+            client_email = os.getenv("FIREBASE_CLIENT_EMAIL", "")
+            
+            if not private_key or not client_email:
+                logger.info("Firebase credentials not configured - skipping initialization")
+                self.initialized = False
+                return
+            
             # Firebase config from environment or hardcoded
             firebase_config = {
                 "apiKey": "AIzaSyClrXVHM5xP4FqZKsjaqN7VEXAsGwNeax4",
@@ -37,8 +46,8 @@ class FirebaseService:
                     "type": "service_account",
                     "project_id": firebase_config["projectId"],
                     "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID", ""),
-                    "private_key": os.getenv("FIREBASE_PRIVATE_KEY", "").replace('\\n', '\n'),
-                    "client_email": os.getenv("FIREBASE_CLIENT_EMAIL", ""),
+                    "private_key": private_key.replace('\\n', '\n'),
+                    "client_email": client_email,
                     "client_id": os.getenv("FIREBASE_CLIENT_ID", ""),
                     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                     "token_uri": "https://oauth2.googleapis.com/token",
@@ -65,6 +74,10 @@ class FirebaseService:
             })
         except Exception as e:
             logger.error(f"Firebase update_status error: {e}")
+    
+    async def update_status_async(self, data: Dict[str, Any]):
+        """Update bot status in Firebase (async wrapper)"""
+        self.update_status(data)
     
     def update_account(self, data: Dict[str, Any]):
         """Update account info in Firebase"""

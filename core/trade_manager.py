@@ -814,6 +814,25 @@ class TradeManager:
             self._load_trades_sync()
         return list(self.trades.values())
     
+    def get_trade_by_ticket(self, ticket: int) -> Optional[Trade]:
+        """Find a trade that contains the specified position ticket"""
+        # Ensure trades are loaded
+        if not self.trades:
+            self._load_trades_sync()
+            
+        ticket_str = str(ticket)
+        for trade in self.trades.values():
+            # Check main ticket
+            if str(trade.order_ticket) == ticket_str or str(trade.position_ticket) == ticket_str:
+                return trade
+            
+            # Check multiple position tickets
+            if trade.position_tickets:
+                for pos in trade.position_tickets:
+                    if str(pos.get("ticket")) == ticket_str:
+                        return trade
+        return None
+    
     def get_trade_stats(self) -> dict:
         """Get trading statistics"""
         from datetime import datetime

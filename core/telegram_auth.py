@@ -6,6 +6,7 @@ When user logs in, they're authenticated via their Telegram account.
 
 import os
 import json
+import asyncio
 import jwt
 import secrets
 import hashlib
@@ -81,6 +82,7 @@ class TelegramAuthService:
         self.users_file = 'data/telegram_users.json'
         self.sessions_file = 'data/telegram_sessions.json'
         self._ensure_files()
+        self._check_lock = asyncio.Lock()
     
     def _ensure_files(self):
         """Ensure data files exist"""
@@ -161,103 +163,64 @@ class TelegramAuthService:
         Returns (is_valid, user_info)
         Uses cached user info to avoid session conflicts.
         """
-        # First check cache to avoid session conflicts
-        cached_user = self._get_cached_user()
-        if cached_user:
-            logger.info("Using cached Telegram user info")
-            return True, cached_user
-        
-        # Check if session file exists (basic validation)
-        session_path = 'evobot_session'
-        if not os.path.exists(f'{session_path}.session'):
-            logger.warning("No Telegram session file")
-            return False, None
-        
-        # Try to get fresh user info from Telegram
-        from telethon import TelegramClient
-        from dotenv import load_dotenv
-        load_dotenv()
-        
-        try:
-            # Get settings
-            settings_file = 'data/settings_cache.json'
-            settings = {}
-            if os.path.exists(settings_file):
-                with open(settings_file, 'r') as f:
-                    settings = json.load(f)
+        async with self._check_lock:
+            # First check cache to avoid session conflicts
+            cached_user = self._get_cached_user()
+            if cached_user:
+                logger.debug("Using cached Telegram user info")
+                return True, cached_user
             
-            api_id = settings.get('telegram', {}).get('api_id')
-            api_hash = os.getenv('TELEGRAM_API_HASH')
+            # Check if session file exists
+            session_path = 'evobot_session'
+            if not os.path.exists(f'{session_path}.session'):
+                logger.warning("No Telegram session file")
+                return False, None
             
-            if not api_id or not api_hash:
-                logger.warning("Telegram not configured")
-                # If session exists but can't connect, allow login with default user
-                return True, self._get_default_user()
-            
-            # Use a separate session for auth checks to avoid conflicts
-            auth_session_path = 'data/auth_session'
-            
-            # Copy session file if needed
-            import shutil
-            if not os.path.exists(f'{auth_session_path}.session'):
-                try:
-                    shutil.copy(f'{session_path}.session', f'{auth_session_path}.session')
-                except:
-                    pass
-            
-            client = TelegramClient(auth_session_path, api_id, api_hash)
+            # Use the shared telegram_listener to avoid session locks
+            from telegram.listener import telegram_listener
             
             try:
-                await client.connect()
+                if not telegram_listener.client or not telegram_listener.client.is_connected():
+                    logger.info("Initializing Telegram listener for auth check...")
+                    await telegram_listener.start()
                 
-                if not await client.is_user_authorized():
-                    await client.disconnect()
-                    logger.warning("Telegram session not authorized")
-                    return True, self._get_default_user()
-                
-                me = await client.get_me()
-                
-                # Download profile photo
-                photo_path = None
-                if me.photo:
-                    os.makedirs('data/user_photos', exist_ok=True)
-                    photo_file = f'data/user_photos/{me.id}.jpg'
-                    try:
-                        await client.download_profile_photo(me, file=photo_file)
-                        if os.path.exists(photo_file):
+                client = telegram_listener.client
+                if client and await client.is_user_authorized():
+                    me = await client.get_me()
+                    
+                    # Download profile photo
+                    photo_path = None
+                    if me.photo:
+                        os.makedirs('data/user_photos', exist_ok=True)
+                        photo_file = f'data/user_photos/{me.id}.jpg'
+                        try:
+                            # Only download if missing or old
+                            if not os.path.exists(photo_file):
+                                await client.download_profile_photo(me, file=photo_file)
                             photo_path = photo_file
-                    except:
-                        pass
-                
-                user_info = {
-                    'id': me.id,
-                    'first_name': me.first_name,
-                    'last_name': me.last_name,
-                    'username': me.username,
-                    'phone': me.phone,
-                    'photo_path': photo_path,
-                    'premium': getattr(me, 'premium', False)
-                }
-                
-                await client.disconnect()
-                
-                # Cache the user info
-                self._cache_user(user_info)
-                
-                return True, user_info
-                
-            except Exception as conn_err:
-                logger.error(f"Connection error: {conn_err}")
-                try:
-                    await client.disconnect()
-                except:
-                    pass
-                # If session exists, allow with default user
-                return True, self._get_default_user()
-            
-        except Exception as e:
-            logger.error(f"Error checking Telegram session: {e}")
-            return False, None
+                        except:
+                            pass
+                    
+                    user_info = {
+                        'id': me.id,
+                        'first_name': me.first_name,
+                        'last_name': me.last_name,
+                        'username': me.username,
+                        'phone': me.phone,
+                        'photo_path': photo_path,
+                        'premium': getattr(me, 'premium', False)
+                    }
+                    
+                    # Cache the user info
+                    self._cache_user(user_info)
+                    return True, user_info
+                else:
+                    logger.warning("Telegram session not authorized via listener")
+                    return False, None
+                    
+            except Exception as e:
+                logger.error(f"Error checking Telegram session via listener: {e}")
+                return False, None
     
     def get_or_create_user(self, telegram_user: Dict) -> TelegramUser:
         """Get existing user or create new one from Telegram data"""

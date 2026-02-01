@@ -262,6 +262,35 @@
             .login-left { display: none; }
             .login-right { width: 100%; min-width: 100%; border: none; padding: 40px 24px; min-height: 100vh; }
         }
+        
+        /* Setup Flow Styles */
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+        .input-group input {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 15px;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .input-group input:focus { outline: none; border-color: #0088cc; box-shadow: 0 0 0 3px rgba(0,136,204,0.1); }
+        
+        .btn.primary {
+            background: #0088cc;
+            color: white;
+        }
+        .btn.primary:hover { background: #0077b3; }
+        .btn.primary:disabled { background: #8bcce9; opacity: 1; }
+        
+        .btn.text-only {
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .btn.text-only:hover { background: rgba(0,0,0,0.05); color: var(--text); }
     </style>
 </head>
 <body>
@@ -296,54 +325,109 @@
                 </div>
             </div>
         </div>
-        <div class="login-right">
-            <div class="login-box">
-                <div class="login-header">
-                    <h2>Welcome back</h2>
-                    <p>Sign in with your Telegram account</p>
+    <div class="login-right">
+        <div class="login-box">
+            <div class="login-header">
+                <h2>Welcome back</h2>
+                <p>Sign in with your Telegram account</p>
+            </div>
+            
+            <div class="telegram-section">
+                <!-- Loading State -->
+                <div v-if="checkingSession" class="loading-box">
+                    <div class="loading-spinner"></div>
+                    <p>Checking session...</p>
                 </div>
-                <div class="telegram-section">
-                    <div v-if="checkingSession" class="loading-box">
-                        <div class="loading-spinner"></div>
-                        <p>Checking session...</p>
-                    </div>
-                    <div v-else-if="telegramAvailable">
-                        <div class="user-card" v-if="telegramUser">
-                            <div class="user-avatar">
-                                <img v-if="telegramUser.photo_path" :src="'/api/telegram/user/photo'">
-                                <i v-else class="fab fa-telegram"></i>
-                            </div>
-                            <div class="user-info">
-                                <h4>{{ telegramUser.first_name }} {{ telegramUser.last_name }}</h4>
-                                <p>@{{ telegramUser.username || telegramUser.phone }}</p>
-                            </div>
+
+                <!-- Scenario 1: Session Exists (Existing User) -->
+                <div v-else-if="telegramAvailable">
+                    <div class="user-card" v-if="telegramUser">
+                        <div class="user-avatar">
+                            <img v-if="telegramUser.photo_path" :src="'/api/telegram/user/photo'">
+                            <i v-else class="fab fa-telegram"></i>
                         </div>
-                        <button @click="telegramLogin" class="btn" :disabled="loading">
+                        <div class="user-info">
+                            <h4>{{ telegramUser.first_name }} {{ telegramUser.last_name }}</h4>
+                            <p>@{{ telegramUser.username || telegramUser.phone }}</p>
+                        </div>
+                    </div>
+                    <button @click="telegramLogin" class="btn" :disabled="loading">
+                        <span v-if="loading" class="spinner"></span>
+                        <img v-else src="/assets/logos/telegram.jpg" alt="Telegram" class="telegram-logo">
+                        <span>{{ loading ? 'Signing in...' : 'Continue with Telegram' }}</span>
+                    </button>
+                    <!-- Option to reset/change account -->
+                    <div style="text-align: center; margin-top: 15px;">
+                         <a href="#" @click.prevent="resetSession" style="color: var(--text-muted); font-size: 12px; text-decoration: none;">Use a different account?</a>
+                    </div>
+                </div>
+
+                <!-- Scenario 2: No Session (Setup Flow) -->
+                <div v-else class="setup-flow">
+                    
+                    <!-- Step 1: Phone Number -->
+                    <div v-if="setupStep === 1">
+                        <div class="input-group">
+                            <label>Phone Number</label>
+                            <input type="tel" v-model="setupPhone" placeholder="+1234567890" @keyup.enter="requestSetupCode" :disabled="loading">
+                            <small style="color: var(--text-muted); display: block; margin-top: 5px;">Enter number with country code</small>
+                        </div>
+                        <button @click="requestSetupCode" class="btn primary" :disabled="loading || !setupPhone">
                             <span v-if="loading" class="spinner"></span>
-                            <img v-else src="/assets/logos/telegram.jpg" alt="Telegram" class="telegram-logo">
-                            <span>{{ loading ? 'Signing in...' : 'Continue with Telegram' }}</span>
+                            <span>{{ loading ? 'Sending Code...' : 'Send Verification Code' }}</span>
                         </button>
                     </div>
-                    <div v-else class="no-session">
-                        <div class="no-session-icon"><i class="fab fa-telegram"></i></div>
-                        <h3>No Telegram Session</h3>
-                        <p>Set up your Telegram connection first</p>
-                        <div class="setup-cmd">python3 auth_telegram.py</div>
+
+                    <!-- Step 2: Verification Code -->
+                    <div v-if="setupStep === 2">
+                        <div class="input-group">
+                            <label>Verification Code</label>
+                            <input type="text" v-model="setupCode" placeholder="12345" @keyup.enter="verifySetupCode" :disabled="loading">
+                            <small style="color: var(--text-muted); display: block; margin-top: 5px;">Check your Telegram app for a message from "Telegram"</small>
+                        </div>
+                        <button @click="verifySetupCode" class="btn primary" :disabled="loading || !setupCode">
+                            <span v-if="loading" class="spinner"></span>
+                            <span>{{ loading ? 'Verifying...' : 'Verify Code' }}</span>
+                        </button>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button @click="setupStep = 1; error = ''" class="btn text-only" :disabled="loading" style="flex: 1;">
+                                Back
+                            </button>
+                            <button @click="resendViaSms" class="btn text-only" :disabled="loading" style="flex: 1;">
+                                <i class="fas fa-sms" style="margin-right: 5px;"></i> Resend SMS
+                            </button>
+                        </div>
                     </div>
-                </div>
-                <div v-if="error" class="alert error">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span>{{ error }}</span>
-                </div>
-                <div v-if="success" class="alert success">
-                    <i class="fas fa-check-circle"></i>
-                    <span>{{ success }}</span>
-                </div>
-                <div class="footer">
-                    <p>&copy; 2026 EvoBot Trading Platform</p>
+
+                    <!-- Step 3: Password (2FA) -->
+                    <div v-if="setupStep === 3">
+                        <div class="input-group">
+                            <label>Two-Step Verification Password</label>
+                            <input type="password" v-model="setupPassword" placeholder="Your Password" @keyup.enter="verifySetupPassword" :disabled="loading">
+                        </div>
+                        <button @click="verifySetupPassword" class="btn primary" :disabled="loading || !setupPassword">
+                            <span v-if="loading" class="spinner"></span>
+                            <span>{{ loading ? 'Verifying...' : 'Unlock' }}</span>
+                        </button>
+                    </div>
+
                 </div>
             </div>
+
+            <div v-if="error" class="alert error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>{{ error }}</span>
+            </div>
+            <div v-if="success" class="alert success">
+                <i class="fas fa-check-circle"></i>
+                <span>{{ success }}</span>
+            </div>
+
+            <div class="footer">
+                <p>&copy; 2026 EvoBot Trading Platform</p>
+            </div>
         </div>
+    </div>
     </div>
     <script>
         const { createApp } = Vue;
@@ -356,7 +440,13 @@
                     checkingSession: true,
                     telegramAvailable: false,
                     telegramUser: null,
-                    isDarkTheme: false
+                    isDarkTheme: false,
+                    
+                    // Setup Flow Data
+                    setupStep: 1,
+                    setupPhone: '',
+                    setupCode: '',
+                    setupPassword: ''
                 };
             },
             async mounted() {
@@ -391,6 +481,105 @@
                     }
                     localStorage.setItem('evobot-theme', this.isDarkTheme ? 'dark' : 'light');
                 },
+                async requestSetupCode() {
+                    if (!this.setupPhone) return;
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const res = await fetch('/api/auth/telegram/setup/request-code', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ phone: this.setupPhone })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.detail || 'Failed to send code');
+                        
+                        this.setupStep = 2;
+                        this.success = 'Verification code sent!';
+                        setTimeout(() => this.success = '', 3000);
+                    } catch (e) {
+                        this.error = e.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async verifySetupCode() {
+                    if (!this.setupCode) return;
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const res = await fetch('/api/auth/telegram/setup/verify-code', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ code: this.setupCode })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.detail || 'Verification failed');
+                        
+                        if (data.status === 'requires_password') {
+                            this.setupStep = 3;
+                            this.success = '';
+                            return;
+                        }
+                        
+                        this.handleLoginSuccess(data.auth);
+                    } catch (e) {
+                        this.error = e.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async verifySetupPassword() {
+                    if (!this.setupPassword) return;
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const res = await fetch('/api/auth/telegram/setup/verify-password', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ password: this.setupPassword })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.detail || 'Password verification failed');
+                        
+                        this.handleLoginSuccess(data.auth);
+                    } catch (e) {
+                        this.error = e.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                handleLoginSuccess(authData) {
+                    localStorage.setItem('token', authData.access_token);
+                    localStorage.setItem('refresh_token', authData.refresh_token);
+                    localStorage.setItem('user', JSON.stringify(authData.user));
+                    this.success = 'Setup complete! Signing in...';
+                    setTimeout(() => { window.location.href = '/'; }, 1000);
+                },
+                resetSession() {
+                    // Start over
+                    this.telegramAvailable = false;
+                    this.setupStep = 1;
+                    this.setupPhone = '';
+                    this.setupCode = '';
+                    this.setupPassword = '';
+                    this.error = '';
+                },
+                async resendViaSms() {
+                    this.loading = true;
+                    this.error = '';
+                    try {
+                        const res = await fetch('/api/auth/telegram/setup/resend-sms', { method: 'POST' });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.detail || 'Failed to resend');
+                        this.success = data.message || 'Code resent! Check your phone for SMS.';
+                        setTimeout(() => this.success = '', 5000);
+                    } catch (e) {
+                        this.error = e.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
                 async telegramLogin() {
                     this.loading = true;
                     this.error = '';
@@ -402,14 +591,10 @@
                             this.loading = false;
                             return;
                         }
-                        localStorage.setItem('token', data.access_token);
-                        localStorage.setItem('refresh_token', data.refresh_token);
-                        localStorage.setItem('user', JSON.stringify(data.user));
-                        this.success = 'Login successful!';
-                        setTimeout(() => { window.location.href = '/'; }, 500);
+                        this.handleLoginSuccess(data);
                     } catch (e) {
-                        this.error = 'Connection error';
-                        this.loading = false;
+                         this.error = 'Connection error';
+                         this.loading = false;
                     }
                 }
             }

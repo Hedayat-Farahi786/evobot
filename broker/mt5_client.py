@@ -46,7 +46,7 @@ class MT5Client:
         self.account_info: Optional[AccountInfo] = None
         self.symbol_cache: Dict[str, SymbolInfo] = {}
         
-    async def connect(self) -> bool:
+    async def connect(self, user_id: str = None) -> bool:
         """Connect to MT5 terminal"""
         if not MT5_AVAILABLE:
             logger.error("MetaTrader5 package not installed. Install with: pip install MetaTrader5")
@@ -54,12 +54,64 @@ class MT5Client:
             
         async with self._lock:
             try:
-                # Initialize MT5
+                # Shutdown any existing connection first
+                try:
+                    mt5.shutdown()
+                    logger.info("Shut down any existing MT5 connection")
+                except:
+                    pass
+                
+                # Try to connect to already running MT5 terminal first (no credentials needed)
+                logger.info("Attempting to connect to running MT5 terminal...")
+                if mt5.initialize(path=config.broker.path if config.broker.path else None):
+                    # Successfully connected to running terminal
+                    account = mt5.account_info()
+                    if account:
+                        logger.info(f"Connected to running MT5 terminal: {account.server} (Login: {account.login})")
+                        self.account_info = AccountInfo(
+                            balance=account.balance,
+                            equity=account.equity,
+                            margin=account.margin,
+                            free_margin=account.margin_free,
+                            profit=account.profit,
+                            currency=account.currency,
+                            leverage=account.leverage,
+                            server=account.server,
+                            login=account.login,
+                            name=account.name
+                        )
+                        self.connected = True
+                        logger.info(f"Account balance: {account.balance} {account.currency}")
+                        return True
+                
+                # If simple connection failed, try with credentials
+                logger.info("Simple connection failed, trying with credentials...")
+                
+                # Load credentials from store if user_id provided
+                if user_id:
+                    from core.mt5_credentials import mt5_store
+                    creds = mt5_store.get(user_id)
+                    if not creds:
+                        logger.error(f"No MT5 credentials found for user {user_id}")
+                        return False
+                    login = int(creds["login"])
+                    password = creds["password"]
+                    server = creds["server"]
+                    logger.info(f"Using stored credentials: Server={server}, Login={login}")
+                else:
+                    # Fallback to config (for backward compatibility)
+                    login = config.broker.login
+                    password = config.broker.password
+                    server = config.broker.server
+                    logger.info(f"Using config credentials: Server={server}, Login={login}")
+                
+                # Initialize MT5 with credentials
+                logger.info(f"Initializing MT5 with: server={server}, login={login}, path={config.broker.path}")
                 if not mt5.initialize(
                     path=config.broker.path if config.broker.path else None,
-                    login=config.broker.login,
-                    password=config.broker.password,
-                    server=config.broker.server,
+                    login=login,
+                    password=password,
+                    server=server,
                     timeout=config.broker.timeout
                 ):
                     error = mt5.last_error()
