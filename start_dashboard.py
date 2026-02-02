@@ -14,6 +14,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ["AUTO_START_BOT"] = "false"
 
 if __name__ == "__main__":
+    # Initialize logging FIRST
+    from utils.logging_utils import setup_logging
+    setup_logging("evobot", level="INFO")
+    
     import uvicorn
     from dashboard.app import app
     
@@ -30,6 +34,6 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=8080,
-        log_level="warning",
+        log_level="error",
         access_log=False
     )

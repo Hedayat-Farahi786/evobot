@@ -58,31 +58,35 @@ class MT5Client:
                 try:
                     mt5.shutdown()
                     logger.info("Shut down any existing MT5 connection")
+                    await asyncio.sleep(0.5)
                 except:
                     pass
                 
                 # Try to connect to already running MT5 terminal first (no credentials needed)
                 logger.info("Attempting to connect to running MT5 terminal...")
-                if mt5.initialize(path=config.broker.path if config.broker.path else None):
-                    # Successfully connected to running terminal
-                    account = mt5.account_info()
-                    if account:
-                        logger.info(f"Connected to running MT5 terminal: {account.server} (Login: {account.login})")
-                        self.account_info = AccountInfo(
-                            balance=account.balance,
-                            equity=account.equity,
-                            margin=account.margin,
-                            free_margin=account.margin_free,
-                            profit=account.profit,
-                            currency=account.currency,
-                            leverage=account.leverage,
-                            server=account.server,
-                            login=account.login,
-                            name=account.name
-                        )
-                        self.connected = True
-                        logger.info(f"Account balance: {account.balance} {account.currency}")
-                        return True
+                try:
+                    if mt5.initialize(path=config.broker.path if config.broker.path else None):
+                        # Successfully connected to running terminal
+                        account = mt5.account_info()
+                        if account:
+                            logger.info(f"Connected to running MT5 terminal: {account.server} (Login: {account.login})")
+                            self.account_info = AccountInfo(
+                                balance=account.balance,
+                                equity=account.equity,
+                                margin=account.margin,
+                                free_margin=account.margin_free,
+                                profit=account.profit,
+                                currency=account.currency,
+                                leverage=account.leverage,
+                                server=account.server,
+                                login=account.login,
+                                name=account.name
+                            )
+                            self.connected = True
+                            logger.info(f"Account balance: {account.balance} {account.currency}")
+                            return True
+                except Exception as e:
+                    logger.debug(f"Simple connection failed: {e}")
                 
                 # If simple connection failed, try with credentials
                 logger.info("Simple connection failed, trying with credentials...")
@@ -100,6 +104,9 @@ class MT5Client:
                     logger.info(f"Using stored credentials: Server={server}, Login={login}")
                 else:
                     # Fallback to config (for backward compatibility)
+                    if not config.broker.login or not config.broker.password:
+                        logger.error("No MT5 credentials configured")
+                        return False
                     login = config.broker.login
                     password = config.broker.password
                     server = config.broker.server
@@ -122,6 +129,7 @@ class MT5Client:
                 account = mt5.account_info()
                 if account is None:
                     logger.error("Failed to get account info")
+                    mt5.shutdown()
                     return False
                 
                 self.account_info = AccountInfo(
@@ -145,6 +153,10 @@ class MT5Client:
                 
             except Exception as e:
                 logger.error(f"MT5 connection error: {e}", exc_info=True)
+                try:
+                    mt5.shutdown()
+                except:
+                    pass
                 return False
     
     async def disconnect(self):
@@ -417,6 +429,43 @@ class MT5Client:
                 
                 position = position[0]
                 
+                # Get symbol info for stop level
+                symbol_info = await self.get_symbol_info(position.symbol)
+                if not symbol_info:
+                    return False, "Cannot get symbol info"
+                
+                # Get current price
+                tick = mt5.symbol_info_tick(position.symbol)
+                if not tick:
+                    return False, "Cannot get current price"
+                
+                # Validate SL distance from current price
+                if sl is not None:
+                    # Convert to float if string
+                    sl = float(sl)
+                    
+                    # Get stop level (minimum distance from current price)
+                    stops_level = mt5.symbol_info(position.symbol).trade_stops_level
+                    min_distance = stops_level * symbol_info.point
+                    
+                    # Check distance based on position type
+                    if position.type == mt5.POSITION_TYPE_BUY:
+                        current_price = tick.bid
+                        if sl >= current_price - min_distance:
+                            # SL too close, adjust it
+                            sl = current_price - (min_distance * 2)  # Double the minimum distance
+                            logger.warning(f"SL too close, adjusted to {sl} (min distance: {min_distance})")
+                    else:  # SELL
+                        current_price = tick.ask
+                        if sl <= current_price + min_distance:
+                            # SL too close, adjust it
+                            sl = current_price + (min_distance * 2)
+                            logger.warning(f"SL too close, adjusted to {sl} (min distance: {min_distance})")
+                
+                # Validate TP distance
+                if tp is not None:
+                    tp = float(tp)
+                
                 request = {
                     "action": mt5.TRADE_ACTION_SLTP,
                     "symbol": position.symbol,
@@ -499,7 +548,7 @@ class MT5Client:
                 return False, str(e)
     
     async def get_positions(self, symbol: Optional[str] = None, force_refresh: bool = False) -> List[dict]:
-        """Get open positions"""
+        """Get open positions (no caching for real-time updates)"""
         if not self.connected:
             return []
         
@@ -522,9 +571,9 @@ class MT5Client:
                     "current_price": p.price_current,
                     "sl": p.sl,
                     "tp": p.tp,
-                    "profit": p.profit,
-                    "swap": p.swap,
-                    "commission": p.comment,
+                    "profit": float(p.profit),
+                    "swap": float(p.swap),
+                    "commission": float(getattr(p, 'commission', 0)),
                     "magic": p.magic,
                     "comment": p.comment,
                     "time": datetime.fromtimestamp(p.time)
@@ -537,7 +586,7 @@ class MT5Client:
             return []
     
     async def get_account_info(self, force_refresh: bool = False) -> Optional[AccountInfo]:
-        """Get updated account information"""
+        """Get updated account information (no caching for real-time updates)"""
         if not self.connected:
             return None
         

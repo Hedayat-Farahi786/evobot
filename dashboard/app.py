@@ -19,6 +19,7 @@ from core.security import security_manager
 from dashboard.state import bot_state
 from dashboard.deps import get_client_ip
 from dashboard.lifecycle import auto_start_bot
+from core.realtime_sync import realtime_sync
 
 # Import routers
 from dashboard.routers import auth, telegram, admin, api, settings, views, channels, signals
@@ -106,6 +107,20 @@ class ConnectionManager:
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
+    
+    async def broadcast(self, message: dict):
+        """Broadcast message to all connected clients"""
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                logger.error(f"Error broadcasting to client: {e}")
+                disconnected.append(connection)
+        
+        # Clean up disconnected clients
+        for conn in disconnected:
+            self.disconnect(conn)
 
 ws_manager = ConnectionManager()
 
@@ -153,6 +168,19 @@ async def startup_event():
         logger.info("Firebase settings initialized")
     
     logger.info("Firebase services initialized")
+    
+    # Initialize realtime sync with WebSocket broadcast
+    from broker import broker_client
+    from core.trade_manager import trade_manager
+    
+    realtime_sync.initialize(
+        firebase_service=firebase_service,
+        broker_client=broker_client,
+        trade_manager=trade_manager,
+        websocket_broadcast=ws_manager.broadcast,
+        bot_state=bot_state
+    )
+    logger.info("Realtime sync initialized")
     
     # Auto-start the bot if AUTO_START environment variable is set
     if os.getenv("AUTO_START_BOT", "false").lower() == "true":

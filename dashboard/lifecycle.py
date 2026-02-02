@@ -16,11 +16,11 @@ from telegram.listener import telegram_listener
 from config.settings import config
 from models.trade import Signal, Trade, TradeDirection, TradeStatus
 from core.firebase_service import firebase_service
+from core.realtime_sync import realtime_sync
 
 logger = logging.getLogger("evobot.dashboard.lifecycle")
 
 # Global tasks
-_realtime_task = None
 _health_check_task = None
 
 async def handle_signal_wrapper(signal: Signal):
@@ -128,52 +128,10 @@ async def handle_signal_wrapper(signal: Signal):
             }
         })
 
-async def realtime_update_task():
-    """Background task to push real-time updates to WebSocket clients"""
-    logger.info("Starting real-time update task...")
-    while True:
-        try:
-            if bot_state.is_running and bot_state.websocket_clients:
-                # Get fresh data with force_refresh
-                if bot_state.is_connected_mt5:
-                    # Force refresh to get real-time data
-                    account_info = await broker_client.get_account_info(force_refresh=True)
-                    positions = await broker_client.get_positions(force_refresh=True)
-                    
-                    if account_info:
-                        await broadcast_to_clients({
-                            "type": "account_update",
-                            "data": account_info.to_dict()
-                        })
-                    
-                    if positions is not None:
-                        # Simple formatting to save bandwidth
-                        formatted_positions = []
-                        for pos in positions:
-                            formatted_positions.append({
-                                "id": str(pos.get("id", "")),
-                                "position_ticket": pos.get("id"),
-                                "symbol": pos.get("symbol", ""),
-                                "direction": "BUY" if pos.get("type") == "POSITION_TYPE_BUY" else "SELL",
-                                "lot_size": pos.get("volume", 0),
-                                "entry_price": pos.get("openPrice", 0),
-                                "current_price": pos.get("currentPrice", 0),
-                                "profit": pos.get("profit", 0) + pos.get("swap", 0) + pos.get("commission", 0),
-                            })
-                        await broadcast_to_clients({
-                            "type": "positions_update",
-                            "data": {"positions": formatted_positions, "count": len(formatted_positions)}
-                        })
-            
-            await asyncio.sleep(1)  # Update every 1 second
-        except Exception as e:
-            logger.error(f"Real-time update error: {e}")
-            await asyncio.sleep(5)  # Wait longer on error
-
 async def health_check_task():
     """Background task to monitor and maintain connections for 24/7 operation"""
     logger.info("Starting health check task for 24/7 operation...")
-    check_interval = 60  # Check every 60 seconds
+    check_interval = 120  # Check every 2 minutes (reduced overhead)
     
     while True:
         try:
@@ -293,11 +251,14 @@ async def start_bot():
                 
                 if not mt5_creds and firebase_service.db_ref:
                     logger.info("Trying to get MT5 credentials from Firebase...")
-                    fb_creds = firebase_service.db_ref.child(f"users/{user_id}/mt5_credentials").get()
-                    if fb_creds:
-                        mt5_store.set(user_id, fb_creds["server"], fb_creds["login"], fb_creds["password"])
-                        mt5_creds = fb_creds
-                        logger.info("Retrieved MT5 credentials from Firebase")
+                    try:
+                        fb_creds = firebase_service.db_ref.child(f"users/{user_id}/mt5_credentials").get()
+                        if fb_creds:
+                            mt5_store.set(user_id, fb_creds["server"], fb_creds["login"], fb_creds["password"])
+                            mt5_creds = fb_creds
+                            logger.info("Retrieved MT5 credentials from Firebase")
+                    except Exception as fb_err:
+                        logger.warning(f"Failed to get credentials from Firebase: {fb_err}")
                 
                 if mt5_creds:
                     logger.info(f"Using stored MT5 credentials: Server={mt5_creds['server']}, Login={mt5_creds['login']}")
@@ -309,10 +270,10 @@ async def start_bot():
                 logger.error(mt5_error)
             else:
                 logger.info(f"Attempting MT5 connection...")
-                mt5_connected = await asyncio.wait_for(broker_client.connect(user_id), timeout=60)
+                mt5_connected = await asyncio.wait_for(broker_client.connect(user_id), timeout=30)
                 logger.info(f"MT5 connection result: {mt5_connected}")
         except asyncio.TimeoutError:
-            mt5_error = "Connection timeout - Ensure MT5 terminal is running and logged in"
+            mt5_error = "Connection timeout (30s) - Ensure MT5 terminal is running and logged in"
             logger.warning(f"MT5: {mt5_error}")
         except Exception as mt5_err:
             error_msg = str(mt5_err)
@@ -353,7 +314,7 @@ async def start_bot():
         telegram_connected = False
         telegram_error = None
         try:
-            await asyncio.wait_for(telegram_listener.start(), timeout=45)
+            await asyncio.wait_for(telegram_listener.start(), timeout=30)
             telegram_connected = telegram_listener.client and telegram_listener.client.is_connected()
             bot_state.is_connected_telegram = telegram_connected
             if telegram_connected:
@@ -370,7 +331,7 @@ async def start_bot():
                     "data": {"step": "telegram", "status": "failed", "connected": False, "message": telegram_error}
                 })
         except asyncio.TimeoutError:
-            telegram_error = "Connection timed out after 45s"
+            telegram_error = "Connection timed out after 30s"
             logger.warning(f"Telegram: {telegram_error}")
             bot_state.is_connected_telegram = False
             await broadcast_to_clients({
@@ -482,12 +443,18 @@ async def start_bot():
         bot_state.is_running = True
         bot_state.start_time = datetime.utcnow()
         
-        # Start real-time update task
-        global _realtime_task, _health_check_task
-        if _realtime_task is None or _realtime_task.done():
-            _realtime_task = asyncio.create_task(realtime_update_task())
-            logger.info("Real-time update task started")
+        # Initialize and start real-time sync service
+        realtime_sync.initialize(
+            firebase_service=firebase_service,
+            broker_client=broker_client,
+            trade_manager=trade_manager,
+            websocket_broadcast=broadcast_to_clients,
+            bot_state=bot_state
+        )
+        await realtime_sync.start()
         
+        # Start health check task
+        global _health_check_task
         if _health_check_task is None or _health_check_task.done():
             _health_check_task = asyncio.create_task(health_check_task())
             logger.info("Health check task started for 24/7 operation")
@@ -537,6 +504,9 @@ async def stop_bot():
     
     try:
         logger.info("Stopping bot...")
+        
+        # Stop real-time sync
+        await realtime_sync.stop()
         
         await trade_manager.stop()
         await risk_manager.stop()

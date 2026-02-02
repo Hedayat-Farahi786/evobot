@@ -80,16 +80,16 @@ class FirebaseService:
         self.update_status(data)
     
     def update_account(self, data: Dict[str, Any]):
-        """Update account info in Firebase"""
+        """Update account info in Firebase (non-blocking, partial update)"""
         if not self.initialized:
             return
         try:
-            self.db_ref.child('account').set({
-                **data,
-                'timestamp': datetime.utcnow().isoformat()
-            })
+            # Add timestamp for tracking
+            data_with_timestamp = {**data, 'timestamp': datetime.utcnow().isoformat()}
+            # Use update() for faster partial updates (doesn't overwrite entire object)
+            self.db_ref.child('account').update(data_with_timestamp)
         except Exception as e:
-            logger.error(f"Firebase update_account error: {e}")
+            logger.debug(f"Firebase update_account error: {e}")
     
     def update_prices(self, prices: Dict[str, Any]):
         """Update live prices in Firebase"""
@@ -128,16 +128,38 @@ class FirebaseService:
             logger.error(f"Firebase add_activity error: {e}")
     
     def update_stats(self, stats: Dict[str, Any]):
-        """Update trading stats in Firebase"""
+        """Update trading stats in Firebase (non-blocking)"""
         if not self.initialized:
             return
         try:
-            self.db_ref.child('stats').set({
-                **stats,
+            self.db_ref.child('stats').update(stats)
+        except Exception as e:
+            logger.debug(f"Firebase update_stats error: {e}")
+    
+    def update_trades(self, trades: list):
+        """Update all trades in Firebase (batch update)"""
+        if not self.initialized:
+            return
+        try:
+            trades_dict = {t['id']: t for t in trades}
+            self.db_ref.child('trades').update(trades_dict)
+        except Exception as e:
+            logger.debug(f"Firebase update_trades error: {e}")
+    
+    def update_positions(self, positions: list):
+        """Update positions in Firebase - store as array for dashboard compatibility"""
+        if not self.initialized:
+            return
+        try:
+            # Store positions as simple array with metadata
+            self.db_ref.child('positions').set(positions)
+            # Also store count and timestamp separately for quick access
+            self.db_ref.child('positions_meta').update({
+                'count': len(positions),
                 'timestamp': datetime.utcnow().isoformat()
             })
         except Exception as e:
-            logger.error(f"Firebase update_stats error: {e}")
+            logger.debug(f"Firebase update_positions error: {e}")
     
     def update_channels_info(self, channels: list):
         """Update Telegram channels info in Firebase"""

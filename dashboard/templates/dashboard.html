@@ -572,21 +572,30 @@
                     </div>
                 </div>
                 
+                <!-- Syncing Badge - Hidden -->
+                <!--
                 <div class="header-center">
                     <div v-if="loading.refresh" class="sync-badge">
                         <span class="spinner"></span>
                         <span>Syncing</span>
                     </div>
                 </div>
+                -->
                 
                 <div class="header-right">
+                    <!-- Theme Toggle - Hidden -->
+                    <!--
                     <button class="icon-btn" @click="toggleTheme" title="Toggle theme">
                         <svg v-if="isDarkTheme" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M17.66 6.34l1.41-1.41"/></svg>
                         <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
                     </button>
+                    -->
+                    <!-- Refresh Button - Hidden -->
+                    <!--
                     <button v-if="status.bot_running" class="icon-btn" @click="refreshData" :disabled="loading.refresh">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                     </button>
+                    -->
                     <button v-if="!status.bot_running" class="action-btn start" @click="startBot" :disabled="loading.start || (!status.telegram_connected && !telegramSessionValid) || (!status.mt5_connected && !account.login)">
                         <span v-if="loading.start" class="spinner"></span>
                         <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
@@ -837,29 +846,29 @@
                     <div class="stats-row">
                         <div class="stat-card">
                             <div class="stat-label">Balance</div>
-                            <div class="stat-value">{{ currencySymbol }}{{ formatNumber(account.balance) }}</div>
+                            <div class="stat-value animated-number" :data-value="account.balance">{{ currencySymbol }}{{ formatNumber(account.balance) }}</div>
                             <div class="stat-sub">{{ account.currency || 'USD' }}</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Equity</div>
-                            <div class="stat-value">{{ currencySymbol }}{{ formatNumber(account.equity) }}</div>
-                            <div class="stat-sub">Free: {{ currencySymbol }}{{ formatNumber(account.free_margin) }}</div>
+                            <div class="stat-value animated-number" :data-value="account.equity">{{ currencySymbol }}{{ formatNumber(account.equity) }}</div>
+                            <div class="stat-sub">Free: <span class="animated-number" :data-value="account.free_margin">{{ currencySymbol }}{{ formatNumber(account.free_margin) }}</span></div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Floating P/L</div>
-                            <div class="stat-value" :class="account.profit >= 0 ? 'positive' : 'negative'">
+                            <div class="stat-value animated-number" :class="account.profit >= 0 ? 'positive' : 'negative'" :data-value="account.profit">
                                 {{ account.profit >= 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(account.profit) }}
                             </div>
                             <div class="stat-sub">Unrealized</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Win Rate</div>
-                            <div class="stat-value">{{ stats.closed_trades > 0 ? (stats.win_rate || 0).toFixed(1) : '—' }}%</div>
+                            <div class="stat-value animated-number" :data-value="stats.win_rate">{{ stats.closed_trades > 0 ? (stats.win_rate || 0).toFixed(1) : '—' }}%</div>
                             <div class="stat-sub">{{ stats.winning_trades || 0 }}/{{ stats.closed_trades || 0 }} closed</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Open Positions</div>
-                            <div class="stat-value">{{ mt5Positions.length }}</div>
+                            <div class="stat-value animated-number" :data-value="mt5Positions.length">{{ mt5Positions.length }}</div>
                             <div class="stat-sub">MT5 Account</div>
                         </div>
                     </div>
@@ -2187,6 +2196,7 @@
         </div>
     </div>
 
+    <script src="/static/js/value-animations.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>

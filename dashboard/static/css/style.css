@@ -3728,6 +3728,52 @@
             100% { background: transparent; }
         }
         
+        /* Value Change Animations */
+        .animated-number {
+            transition: transform 0.3s ease, color 0.3s ease;
+            display: inline-block;
+        }
+        
+        .value-increase {
+            animation: valueUp 0.6s ease !important;
+        }
+        
+        .value-decrease {
+            animation: valueDown 0.6s ease !important;
+        }
+        
+        @keyframes valueUp {
+            0% { 
+                transform: scale(1);
+                background: transparent;
+            }
+            20% { 
+                transform: scale(1.03);
+                background: rgba(34, 197, 94, 0.08);
+                color: #22c55e !important;
+            }
+            100% { 
+                transform: scale(1);
+                background: transparent;
+            }
+        }
+        
+        @keyframes valueDown {
+            0% { 
+                transform: scale(1);
+                background: transparent;
+            }
+            20% { 
+                transform: scale(1.03);
+                background: rgba(239, 68, 68, 0.08);
+                color: #ef4444 !important;
+            }
+            100% { 
+                transform: scale(1);
+                background: transparent;
+            }
+        }
+        
         /* Smooth transitions for all interactive elements */
         .status-pill {
             transition: all 0.2s ease;
@@ -9062,3 +9108,212 @@
     color: var(--danger);
 }
 
+
+
+/* ===== SMOOTH NUMBER ANIMATIONS (2-SECOND SYNC) ===== */
+.animated-number {
+    transition: all 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    display: inline-block;
+}
+
+/* Increase animation - gentle green flash */
+.animated-number[data-direction="up"] {
+    animation: numberIncrease 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes numberIncrease {
+    0% {
+        transform: scale(1);
+    }
+    15% {
+        transform: scale(1.08);
+        color: var(--success);
+        text-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Decrease animation - gentle red flash */
+.animated-number[data-direction="down"] {
+    animation: numberDecrease 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes numberDecrease {
+    0% {
+        transform: scale(1);
+    }
+    15% {
+        transform: scale(1.08);
+        color: var(--danger);
+        text-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Subtle background pulse for stat cards when value changes */
+.stat-card.value-changed {
+    animation: cardPulse 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes cardPulse {
+    0%, 100% {
+        background: var(--bg);
+        box-shadow: none;
+    }
+    15% {
+        background: var(--bg-hover);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+    }
+}
+
+/* Smooth color transitions for profit/loss */
+.animated-number.positive {
+    transition: color 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animated-number.negative {
+    transition: color 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Number counter animation effect */
+@property --num {
+    syntax: '<integer>';
+    initial-value: 0;
+    inherits: false;
+}
+
+.animated-number.counting {
+    animation: countUp 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Gentle shimmer effect on update */
+.animated-number::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.animated-number[data-direction="up"]::after,
+.animated-number[data-direction="down"]::after {
+    animation: shimmerPass 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes shimmerPass {
+    0% {
+        left: -100%;
+        opacity: 0;
+    }
+    20% {
+        opacity: 1;
+    }
+    50% {
+        left: 100%;
+        opacity: 1;
+    }
+    100% {
+        left: 100%;
+        opacity: 0;
+    }
+}
+
+/* Smooth font weight transition for emphasis */
+.animated-number {
+    font-variant-numeric: tabular-nums;
+    will-change: transform, color;
+}
+
+/* Prevent layout shift during animation */
+.stat-value.animated-number {
+    min-width: fit-content;
+}
+
+/* Subtle glow effect on significant changes */
+.animated-number.significant-change {
+    animation: significantGlow 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes significantGlow {
+    0%, 100% {
+        filter: brightness(1);
+    }
+    15% {
+        filter: brightness(1.2) drop-shadow(0 0 8px currentColor);
+    }
+}
+
+
+/* ===== VALUE CHANGE ANIMATIONS ===== */
+.animated-number {
+    transition: color 0.3s ease;
+}
+
+.animated-number.value-increase {
+    animation: valueIncrease 0.6s ease;
+}
+
+.animated-number.value-decrease {
+    animation: valueDecrease 0.6s ease;
+}
+
+@keyframes valueIncrease {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.15); color: var(--success); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+
+@keyframes valueDecrease {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.15); color: var(--danger); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+
+/* Flash background on change */
+.animated-number.value-increase::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, transparent 70%);
+    border-radius: 8px;
+    animation: flashGreen 0.6s ease;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.animated-number.value-decrease::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    background: radial-gradient(circle, rgba(239, 68, 68, 0.2) 0%, transparent 70%);
+    border-radius: 8px;
+    animation: flashRed 0.6s ease;
+    pointer-events: none;
+    z-index: -1;
+}
+
+@keyframes flashGreen {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}
+
+@keyframes flashRed {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}
+
+/* Ensure parent has position relative */
+.stat-value, .account-value, .navbar-account-value {
+    position: relative;
+}

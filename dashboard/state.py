@@ -22,9 +22,17 @@ bot_state = BotState()
 
 
 async def broadcast_to_clients(message: dict):
-    """Broadcast message to all connected WebSocket clients"""
-    for client in bot_state.websocket_clients[:]:
+    """Broadcast message to all connected WebSocket clients (non-blocking)"""
+    if not bot_state.websocket_clients:
+        return
+    
+    disconnected = []
+    for client in bot_state.websocket_clients:
         try:
             await client.send_json(message)
         except:
-            bot_state.websocket_clients.remove(client)
+            disconnected.append(client)
+    
+    # Remove disconnected clients
+    for client in disconnected:
+        bot_state.websocket_clients.remove(client)

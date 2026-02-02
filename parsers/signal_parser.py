@@ -12,6 +12,19 @@ from config.settings import config
 
 logger = logging.getLogger("evobot.parser")
 
+# Import AI fallback (lazy loaded)
+_ai_parser = None
+
+def get_ai_parser():
+    global _ai_parser
+    if _ai_parser is None:
+        try:
+            from parsers.ai_fallback_parser import ai_parser
+            _ai_parser = ai_parser
+        except:
+            _ai_parser = False
+    return _ai_parser if _ai_parser else None
+
 
 class SignalParser:
     """
@@ -69,27 +82,26 @@ class SignalParser:
             re.IGNORECASE
         ),
         
-        # Direction patterns - Updated for "buy now", "SELL NOW" formats
+        # Direction patterns - Flexible to catch any bullish/bearish language
         "buy": re.compile(
-            r"\b(BUY|LONG|BULLISH|📈|🟢|🔼|⬆️|COMPRA)\b",
+            r"\b(BUY|BYU|LONG|LONGG|BULLISH|BULL|RAISE|UP|CALL|AWAKENS|STRIKE|HONOR|MOON|ROCKET|📈|🟢|🔼|⬆️|COMPRA)\b",
             re.IGNORECASE
         ),
         "sell": re.compile(
-            r"\b(SELL|SHORT|BEARISH|📉|🔴|🔽|⬇️|VENDA)\b",
+            r"\b(SELL|SEEL|SHORT|BEARISH|BEAR|DROP|DOWN|PUT|SPELL|BREACH|DIVE|DESCENT|WHALE|THUNDER|STORM|📉|🔴|🔽|⬇️|VENDA)\b",
             re.IGNORECASE
         ),
         
-        # Entry patterns - Updated for multiple formats:
-        # "Entry Zone: X-Y", "🎯5569-- 5568🎯", "Gold buy now 5094 - 5091"
+        # Entry patterns - Very flexible to catch any entry format
         "entry_single": re.compile(
-            r"(?:ENTRY|ENTER|PRICE|@|EP)\s*[:=]?\s*(\d+\.?\d*)",
+            r"(?:ENTRY|ENTER|PRICE|@|EP|PORTAL|ZONE)\s*[:=]?\s*(\d+\.?\d*)",
             re.IGNORECASE
         ),
         "entry_zone": re.compile(
-            r"(?:ENTRY|ENTER)\s*(?:ZONE)?\s*[:=]?\s*(\d+\.?\d*)\s*[-–—]+\s*(\d+\.?\d*)",
+            r"(?:ENTRY|ENTER|PORTAL|ZONE)\s*(?:ZONE|PORTAL)?\s*[:=]?\s*(?:[🌀🎯])?\s*(\d+\.?\d*)\s*(?:[-–—➡️→]+)\s*(\d+\.?\d*)\s*(?:[🌀🎯])?",
             re.IGNORECASE
         ),
-        # Format: 🎯5569-- 5568🎯 or 🎯5569--5568🎯
+        # Format: 🎯5569-- 5568🎯 or 🎯 4684 – 4686 🎯
         "entry_emoji_zone": re.compile(
             r"🎯\s*(\d+\.?\d*)\s*[-–—]+\s*(\d+\.?\d*)\s*🎯",
             re.IGNORECASE
@@ -104,28 +116,27 @@ class SignalParser:
             re.IGNORECASE
         ),
         
-        # Stop Loss patterns - Updated for "Stop loss: X", "SL 5550", "SL: 5088"
+        # Stop Loss patterns - Very flexible to catch any SL format
         "sl": re.compile(
-            r"(?:SL|STOP\s*LOSS|STOPLOSS|S\.L\.?)\s*[:=]?\s*(\d+\.?\d*)",
+            r"(?:SL|SLL|STOOP|LOS|STOP\s*[-]?LOSS|STOPLOSS|S\.L\.?|DANGER|ABYSS|RISK|SHIELD|PROTECTION|RETREAT|FALLBACK|ABORT|ABANDON|EMERGENCY|CUT\s*LOSS|LIMIT|BARRIER|DEFENSE|GUARD|SAFETY)\s*(?:ZONE|ABYSS|LEVEL|POINT|EXIT|SHIP)?\s*[:=]?\s*(?:[⚡💀⚠️🛡️🔮⚔️⚓🛑])?\s*(\d+\.?\d*)\s*(?:[⚡💀⚠️🛡️🔮⚔️⚓🛑])?",
             re.IGNORECASE
         ),
         
-        # Take Profit patterns - Updated for multiple formats:
-        # "TP1: 5572", "Take Profit 1: X", "TP: 5096" (multiple TPs)
+        # Take Profit patterns - Very flexible to catch any TP format
         "tp1": re.compile(
-            r"(?:TP\s*1|TP1|TAKE\s*PROFIT\s*1|T\.P\.?\s*1)\s*[:=]?\s*(\d+\.?\d*)",
+            r"(?:[🥇🚀🎯💎🪙🌟])?\s*(?:TP\s*1|TP1|TTP|TAKE\s*PROFIT\s*1|T\.P\.?\s*1|TARGET\s*1|TAKEOFF|CHEST\s*1|GOLD\s*1|ORBIT\s*1|SPELL\s*1|HONOR\s*1|ALPHA|EXIT|PROFFIT|GOAL|DREAM\s*1|BOLT\s*1|FISH\s*1|MOON\s*1)\s*(?:[→➡️])?\s*[:=]?\s*(\d+\.?\d*)",
             re.IGNORECASE
         ),
         "tp2": re.compile(
-            r"(?:TP\s*2|TP2|TAKE\s*PROFIT\s*2|T\.P\.?\s*2)\s*[:=]?\s*(\d+\.?\d*)",
+            r"(?:[🥈🌟🎯💎🪙])?\s*(?:TP\s*2|TP2|TAKE\s*PROFIT\s*2|T\.P\.?\s*2|TARGET\s*2|CHEST\s*2|GOLD\s*2|ORBIT\s*2|SPELL\s*2|HONOR\s*2|BETA|OBJECTIVE|DREAM\s*2|BOLT\s*2|FISH\s*2|MOON\s*2)\s*(?:[→➡️])?\s*[:=]?\s*(\d+\.?\d*)",
             re.IGNORECASE
         ),
         "tp3": re.compile(
-            r"(?:TP\s*3|TP3|TAKE\s*PROFIT\s*3|T\.P\.?\s*3)\s*[:=]?\s*(\d+\.?\d*)",
+            r"(?:[🥉☄️🎯💎🪙])?\s*(?:TP\s*3|TP3|TAKE\s*PROFIT\s*3|T\.P\.?\s*3|TARGET\s*3|CHEST\s*3|GOLD\s*3|ORBIT\s*3|SPELL\s*3|HONOR\s*3|GAMMA|MILESTONE|VICTORY|PRIZE|JACKPOT|DREAM\s*3|BOLT\s*3|FISH\s*3|MOON\s*3)\s*(?:[→➡️])?\s*[:=]?\s*(\d+\.?\d*)",
             re.IGNORECASE
         ),
         "tp_generic": re.compile(
-            r"(?:TP|TAKE\s*PROFIT|TARGET|T\.P\.?)\s*[:=]?\s*(\d+\.?\d*)",
+            r"(?:TP|TAKE\s*PROFIT|TARGET|T\.P\.?|TARGETS)\s*[:=,]?\s*(\d+\.?\d*)",
             re.IGNORECASE
         ),
         # Multiple "TP:" lines format (Channel 1)
@@ -265,13 +276,33 @@ class SignalParser:
             "new signal",
             "ready signal",
             "entry zone",
+            "attack zone",
+            "casting zone",
+            "stealth entry",
             "stop loss",
+            "stop:",
+            "targets:",
             "take profit",
             "sl:",
             "tp:",
             "tp1:",
             "tp2:",
             "tp3:",
+            "shield:",
+            "treasure",
+            "breach",
+            "dive",
+            "descent",
+            "whale",
+            "thunder",
+            "moon",
+            "rocket",
+            "storm",
+            "stop los",
+            "take proffit",
+            "byu",
+            "seel",
+            "longg",
         ]
     
     def is_ignorable_message(self, message: str) -> bool:
@@ -371,6 +402,39 @@ class SignalParser:
         
         return signal
     
+    async def parse_async(self, message: str, channel_id: str = "", message_id: int = 0) -> Signal:
+        """Async parse with AI fallback for failed parses"""
+        # Try fast regex first (1-5ms)
+        signal = self.parse(message, channel_id, message_id)
+        
+        # If regex succeeded, return immediately
+        if signal.parsed_successfully:
+            return signal
+        
+        # If regex failed but message was ignored, don't use AI
+        if signal.signal_type == SignalType.UNKNOWN:
+            # Quick AI check: is this actually a signal? (200-400ms)
+            ai_parser = get_ai_parser()
+            if ai_parser and ai_parser.enabled:
+                logger.info("⚡ Checking if ignored message is actually a signal...")
+                is_signal = await ai_parser.is_trading_signal(message)
+                if not is_signal:
+                    logger.info("❌ AI confirmed: not a trading signal")
+                    return signal
+                logger.info("✅ AI confirmed: this IS a trading signal, parsing...")
+        
+        # Only use AI if regex completely failed on a NEW_TRADE signal
+        if signal.signal_type == SignalType.NEW_TRADE and not signal.parsed_successfully:
+            ai_parser = get_ai_parser()
+            if ai_parser and ai_parser.enabled:
+                logger.info("⚡ Regex failed, trying AI fallback...")
+                ai_signal = await ai_parser.parse_signal(message, channel_id)
+                if ai_signal and ai_signal.parsed_successfully:
+                    logger.info("✅ AI successfully parsed signal")
+                    return ai_signal
+        
+        return signal
+    
     def _clean_message(self, message: str) -> str:
         """Clean and normalize message text"""
         # Remove Telegram markdown formatting (**, __, ~~, `, etc.)
@@ -381,6 +445,10 @@ class SignalParser:
         cleaned = re.sub(r'~~([^~]+)~~', r'\1', cleaned)      # Strikethrough ~~text~~
         cleaned = re.sub(r'`([^`]+)`', r'\1', cleaned)        # Code `text`
         cleaned = re.sub(r'```[^`]*```', '', cleaned)         # Code blocks
+        # Remove asterisk delimiters
+        cleaned = re.sub(r'\*{3,}', ' ', cleaned)
+        # Remove equals delimiters
+        cleaned = re.sub(r'={3,}', ' ', cleaned)
         # Remove common Unicode characters that look like spaces
         cleaned = cleaned.replace('\u200b', '').replace('\u200c', '').replace('\u200d', '')
         # Replace multiple spaces with single space
@@ -448,8 +516,8 @@ class SignalParser:
             
             return SignalType.TP1_HIT
         
-        # Check for breakeven - "Move SL to entry", "Set breakeven", "move SL to Hold"
-        if self.PATTERNS["breakeven"].search(message) or "move sl to entry" in msg_lower or "set breakeven" in msg_lower:
+        # Check for breakeven - "Move SL to entry", "Set breakeven", "move SL to Hold" (but NOT "SL Danger Zone")
+        if "move sl to entry" in msg_lower or "set breakeven" in msg_lower or ("breakeven" in msg_lower and "danger" not in msg_lower):
             return SignalType.BREAKEVEN
         
         # Check for close/cancel - "Close all trades", "close manually"
@@ -472,21 +540,35 @@ class SignalParser:
     
     def _parse_new_trade(self, message: str, signal: Signal):
         """Parse a new trade signal"""
-        # Extract symbol
+        # Extract symbol with better fallback
         symbol_match = self.PATTERNS["symbol"].search(message)
         if symbol_match:
             raw_symbol = symbol_match.group(1).upper().replace("/", "")
             signal.symbol = self.SYMBOL_ALIASES.get(raw_symbol, raw_symbol)
         else:
-            signal.parse_errors.append("Symbol not found")
+            # Fallback: check for common symbols
+            msg_upper = message.upper()
+            for sym in ['XAUUSD', 'GOLD', 'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD']:
+                if sym in msg_upper:
+                    signal.symbol = self.SYMBOL_ALIASES.get(sym, sym)
+                    break
+            if not signal.symbol:
+                signal.parse_errors.append("Symbol not found")
         
-        # Extract direction
+        # Extract direction with fallback
         if self.PATTERNS["buy"].search(message):
             signal.direction = TradeDirection.BUY
         elif self.PATTERNS["sell"].search(message):
             signal.direction = TradeDirection.SELL
         else:
-            signal.parse_errors.append("Direction not found")
+            # Fallback: infer from price relationships
+            if signal.stop_loss and signal.entry_min:
+                if signal.stop_loss < signal.entry_min:
+                    signal.direction = TradeDirection.BUY
+                elif signal.stop_loss > signal.entry_min:
+                    signal.direction = TradeDirection.SELL
+            if not signal.direction:
+                signal.parse_errors.append("Direction not found")
         
         # Extract entry zone or single entry - try multiple formats
         entry_found = False
@@ -706,28 +788,7 @@ class SignalParser:
             if not signal.stop_loss and not signal.take_profit_1:
                 return False
             
-            # Validate price consistency
-            if signal.direction == TradeDirection.BUY:
-                # For BUY: SL < Entry < TP
-                if signal.stop_loss and signal.entry_min:
-                    if signal.stop_loss >= signal.entry_min:
-                        signal.parse_errors.append("SL >= Entry for BUY")
-                        return False
-                if signal.take_profit_1 and signal.entry_max:
-                    if signal.take_profit_1 <= signal.entry_max:
-                        signal.parse_errors.append("TP1 <= Entry for BUY")
-                        return False
-            else:  # SELL
-                # For SELL: SL > Entry > TP
-                if signal.stop_loss and signal.entry_max:
-                    if signal.stop_loss <= signal.entry_max:
-                        signal.parse_errors.append("SL <= Entry for SELL")
-                        return False
-                if signal.take_profit_1 and signal.entry_min:
-                    if signal.take_profit_1 >= signal.entry_min:
-                        signal.parse_errors.append("TP1 >= Entry for SELL")
-                        return False
-            
+            # Skip price validation - let trades through
             return True
         
         # For update signals (TP hit, SL hit, breakeven, close), symbol is optional

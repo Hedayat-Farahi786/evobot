@@ -303,8 +303,8 @@ class TradingConfig:
     def entry_zone_tolerance(self) -> float:
         fs = get_firebase_settings()
         if fs and fs._initialized:
-            return fs.get("trading", "entry_zone_tolerance", 5.0)
-        return float(os.getenv("ENTRY_ZONE_TOLERANCE", "5.0"))
+            return fs.get("trading", "entry_zone_tolerance", 10.0)
+        return float(os.getenv("ENTRY_ZONE_TOLERANCE", "10.0"))
     
     @property
     def execute_immediately(self) -> bool:

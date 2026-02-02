@@ -461,16 +461,39 @@ class TradeManager:
         entry_max: Optional[float],
         direction: TradeDirection
     ) -> bool:
-        """Check if price is within entry zone"""
+        """Check if price is within entry zone with buffer to never miss signals"""
         if entry_min is None or entry_max is None:
             return True  # Market order
         
-        tolerance = config.trading.entry_zone_tolerance * 0.0001  # Convert pips
+        # Aggressive buffer: 5 pips default + 50% extra buffer for fast-moving pairs
+        base_tolerance_pips = config.trading.entry_zone_tolerance
         
-        if direction == TradeDirection.BUY:
-            return (entry_min - tolerance) <= price <= (entry_max + tolerance)
+        # Add extra buffer for fast-moving symbols (Gold, indices)
+        fast_symbols = ['XAUUSD', 'XAGUSD', 'BTCUSD', 'US30', 'NAS100', 'USTEC']
+        if any(sym in str(entry_min) or sym in str(entry_max) for sym in fast_symbols):
+            # For gold/indices, use 2x buffer
+            tolerance_pips = base_tolerance_pips * 2
         else:
-            return (entry_min - tolerance) <= price <= (entry_max + tolerance)
+            # For forex, use 1.5x buffer
+            tolerance_pips = base_tolerance_pips * 1.5
+        
+        # Convert pips to price (0.0001 for forex, 0.01 for gold)
+        pip_value = 0.01 if price > 100 else 0.0001
+        tolerance = tolerance_pips * pip_value
+        
+        # Expand entry zone in BOTH directions to catch fast price movements
+        expanded_min = entry_min - tolerance
+        expanded_max = entry_max + tolerance
+        
+        # For BUY: allow entry if price is anywhere near the zone (even slightly above)
+        # For SELL: allow entry if price is anywhere near the zone (even slightly below)
+        # This ensures we NEVER miss a signal due to fast price movement
+        in_zone = expanded_min <= price <= expanded_max
+        
+        if not in_zone:
+            logger.debug(f"Price {price} outside expanded zone [{expanded_min:.5f} - {expanded_max:.5f}] (tolerance: {tolerance_pips} pips)")
+        
+        return in_zone
     
     async def _monitor_positions(self):
         """Background task to monitor positions and check TPs"""
@@ -485,7 +508,7 @@ class TradeManager:
             except Exception as e:
                 logger.error(f"Position monitor error: {e}", exc_info=True)
             
-            await asyncio.sleep(10)  # Check every 10 seconds to avoid rate limiting
+            await asyncio.sleep(2)  # Monitor every 2 seconds for real-time updates
     
     async def _check_waiting_trades(self):
         """Check if waiting trades should be executed"""
@@ -543,6 +566,7 @@ class TradeManager:
                 
                 # Check which positions have been closed (TP hit)
                 tp_hit_this_cycle = False
+                tp_hit_numbers = []
                 remaining_open = 0
                 
                 for pos_info in trade.position_tickets:
@@ -562,6 +586,7 @@ class TradeManager:
                         trade.notes.append(f"TP{tp_num} hit @ {tp_price}")
                         
                         tp_hit_this_cycle = True
+                        tp_hit_numbers.append(tp_num)
                         
                         # Update trade status based on which TP hit
                         if tp_num == 1:
@@ -581,9 +606,9 @@ class TradeManager:
                     else:
                         remaining_open += 1
                 
-                # If any TP hit this cycle, move remaining positions to breakeven
-                if tp_hit_this_cycle and remaining_open > 0 and not trade.breakeven_applied:
-                    logger.info(f"Trade {trade.id[:8]}... TP hit! Moving {remaining_open} remaining positions to breakeven (only for this signal)")
+                # If TP1 hit and there are remaining positions, move them to breakeven
+                if tp_hit_this_cycle and 1 in tp_hit_numbers and remaining_open > 0 and not trade.breakeven_applied:
+                    logger.info(f"Trade {trade.id[:8]}... TP1 hit! Moving {remaining_open} remaining positions to breakeven")
                     await self._move_all_to_breakeven(trade)
                 
                 # If all positions closed, mark trade as closed
@@ -600,9 +625,18 @@ class TradeManager:
     async def _move_all_to_breakeven(self, trade: Trade):
         """Move all remaining positions to breakeven (SL = entry for each position)"""
         if trade.breakeven_applied:
+            logger.debug(f"Breakeven already applied for trade {trade.id[:8]}")
             return
         
-        logger.info(f"Moving remaining positions to breakeven (SL to each position's entry)")
+        logger.info(f"🔒 Moving remaining positions to breakeven (SL to each position's entry)")
+        
+        # Get current price to calculate safe SL distance
+        bid, ask = await broker_client.get_current_price(trade.symbol)
+        if not bid:
+            logger.error("Cannot get current price for breakeven")
+            return
+        
+        current_price = bid if trade.direction == TradeDirection.BUY else ask
         
         success_count = 0
         for pos_info in trade.position_tickets:
@@ -610,35 +644,47 @@ class TradeManager:
                 continue  # Skip closed positions
             
             ticket = pos_info.get("ticket")
-            entry_price = pos_info.get("entry_price")  # Get this position's entry price
+            entry_price = float(pos_info.get("entry_price", 0))  # Ensure float
             
             if ticket and entry_price:
-                # Calculate breakeven price for THIS POSITION (entry + small buffer)
-                if trade.direction == TradeDirection.BUY:
-                    new_sl = entry_price + (config.trading.breakeven_offset_pips * 0.0001)
-                else:
-                    new_sl = entry_price - (config.trading.breakeven_offset_pips * 0.0001)
+                # Calculate safe breakeven SL based on current price
+                # Use minimum 10 pips buffer from current price
+                min_buffer_pips = 10
                 
-                success, msg = await broker_client.modify_position(ticket, stop_loss=new_sl)
+                if trade.direction == TradeDirection.BUY:
+                    # For BUY: SL must be below current price
+                    # Use entry + small buffer, but ensure it's below current price
+                    ideal_sl = entry_price + (config.trading.breakeven_offset_pips * 0.0001)
+                    safe_sl = min(ideal_sl, current_price - (min_buffer_pips * 0.0001))
+                else:
+                    # For SELL: SL must be above current price
+                    ideal_sl = entry_price - (config.trading.breakeven_offset_pips * 0.0001)
+                    safe_sl = max(ideal_sl, current_price + (min_buffer_pips * 0.0001))
+                
+                logger.info(f"Modifying position {ticket}: entry={entry_price}, current={current_price}, new_sl={safe_sl}")
+                success, msg = await broker_client.modify_position(ticket, sl=safe_sl)
                 if success:
                     success_count += 1
-                    logger.info(f"Position {ticket} moved to breakeven SL={new_sl} (entry was {entry_price})")
+                    logger.info(f"✅ Position {ticket} moved to breakeven SL={safe_sl}")
                 else:
-                    logger.error(f"Failed to move position {ticket} to breakeven: {msg}")
+                    logger.error(f"❌ Failed to move position {ticket} to breakeven: {msg}")
         
         if success_count > 0:
             trade.breakeven_applied = True
             trade.status = TradeStatus.BREAKEVEN
-            trade.notes.append(f"Breakeven applied: SL moved to each position's entry price")
+            trade.notes.append(f"Breakeven applied to {success_count} positions")
             
             log_trade_event("BREAKEVEN", trade.id, trade.symbol, {
-                "new_sl": new_sl,
                 "positions_modified": success_count
             })
-            await self._notify_listeners("BREAKEVEN", trade, {"new_sl": new_sl})
+            await self._notify_listeners("BREAKEVEN", trade, {"positions_modified": success_count})
+            await self._save_trades()
+            logger.info(f"✅ Breakeven applied successfully to {success_count} positions")
+        else:
+            logger.warning(f"⚠️ Failed to apply breakeven to any positions")
     
     async def _update_pnl(self):
-        """Update P&L for active trades"""
+        """Update P&L for active trades and push to Firebase"""
         try:
             positions = await broker_client.get_positions()
             
@@ -649,10 +695,14 @@ class TradeManager:
                 if pos_id:
                     pos_map[str(pos_id)] = pos
             
+            # Track if any values changed
+            values_changed = False
+            
             for trade in self.trades.values():
                 if trade.status not in [TradeStatus.ACTIVE, TradeStatus.TP1_HIT, TradeStatus.TP2_HIT, TradeStatus.BREAKEVEN]:
                     continue
                 
+                old_pnl = trade.unrealized_pnl
                 total_pnl = 0
                 total_swap = 0
                 current_price = None
@@ -674,6 +724,19 @@ class TradeManager:
                 trade.swap = total_swap
                 if current_price:
                     trade.current_price = current_price
+                
+                # Check if values changed
+                if old_pnl != total_pnl:
+                    values_changed = True
+            
+            # Push updated positions to Firebase if values changed
+            if values_changed and positions:
+                try:
+                    from core.firebase_service import firebase_service
+                    if firebase_service.initialized:
+                        firebase_service.update_positions(positions)
+                except Exception as fb_err:
+                    logger.debug(f"Firebase update error: {fb_err}")
                     
         except Exception as e:
             logger.debug(f"Error updating PnL: {e}")
@@ -729,6 +792,7 @@ class TradeManager:
                 trade.current_lot_size = tdata.get("current_lot_size", 0)
                 trade.order_ticket = tdata.get("order_ticket")
                 trade.position_ticket = tdata.get("position_ticket")
+                trade.position_tickets = tdata.get("position_tickets", [])  # Load position_tickets
                 trade.status = TradeStatus(tdata["status"]) if tdata.get("status") else TradeStatus.WAITING
                 trade.breakeven_applied = tdata.get("breakeven_applied", False)
                 trade.channel_id = tdata.get("channel_id", "")
@@ -775,6 +839,7 @@ class TradeManager:
                 trade.current_lot_size = tdata.get("current_lot_size", 0)
                 trade.order_ticket = tdata.get("order_ticket")
                 trade.position_ticket = tdata.get("position_ticket")
+                trade.position_tickets = tdata.get("position_tickets", [])  # Load position_tickets
                 trade.status = TradeStatus(tdata["status"]) if tdata.get("status") else TradeStatus.WAITING
                 trade.breakeven_applied = tdata.get("breakeven_applied", False)
                 trade.channel_id = tdata.get("channel_id", "")

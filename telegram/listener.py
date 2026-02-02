@@ -254,7 +254,10 @@ class TelegramListener:
                 
                 # Check if message is from monitored channel
                 chat_id = getattr(chat, 'id', None)
-                logger.info(f"Message received from chat_id={chat_id}, monitored={self.monitored_channels}")
+                chat_title = getattr(chat, 'title', None) or getattr(chat, 'first_name', 'Unknown')
+                logger.info(f"📨 Message from '{chat_title}' (ID: {chat_id})")
+                logger.info(f"📡 Monitored channels: {self.monitored_channels}")
+                logger.info(f"✅ Is monitored: {chat_id in self.monitored_channels}")
                 
                 # Check for Telegram Service Notification (777000)
                 if chat_id == 777000:
@@ -266,15 +269,17 @@ class TelegramListener:
                     return
 
                 if chat_id not in self.monitored_channels:
-                    logger.debug(f"Ignoring message from non-monitored channel {chat_id}")
+                    logger.debug(f"❌ Ignoring message from non-monitored channel {chat_id} ('{chat_title}')")
                     return
                 
                 # Get message text
                 text = message.text or message.raw_text or ""
                 if not text:
+                    logger.debug("Message has no text, skipping")
                     return
                 
-                logger.info(f"Processing message from {chat_id}: {text[:100]}...")
+                logger.info(f"✅ Processing message from monitored channel '{chat_title}' ({chat_id})")
+                logger.info(f"📝 Message text: {text[:200]}...")
                 
                 # Call raw message handlers
                 for handler in self.raw_message_handlers:
@@ -283,12 +288,17 @@ class TelegramListener:
                     except Exception as e:
                         logger.error(f"Raw message handler error: {e}")
                 
-                # Parse signal
-                signals = signal_parser.parse_multiple_signals(
+                # Parse signal (with AI fallback if regex fails)
+                signal = await signal_parser.parse_async(
                     text,
                     channel_id=str(chat_id),
                     message_id=message.id
                 )
+                signals = [signal] if signal else []
+                
+                logger.info(f"🔍 Parsed {len(signals)} signal(s) from message")
+                for idx, sig in enumerate(signals):
+                    logger.info(f"Signal {idx+1}: Type={sig.signal_type.value}, Success={sig.parsed_successfully}, Errors={sig.parse_errors}")
                 
                 # Call signal handlers for each parsed signal
                 for signal in signals:

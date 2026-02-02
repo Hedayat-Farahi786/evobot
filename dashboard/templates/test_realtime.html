@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Sync Test - EvoBot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.connected { background: #28a745; }
+        .status-dot.disconnected { background: #dc3545; }
+        .status-dot.loading { background: #ffc107; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .metric-label {
+            color: #666;
+            font-weight: 500;
+        }
+        .metric-value {
+            color: #333;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .positive { color: #28a745 !important; }
+        .negative { color: #dc3545 !important; }
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+        .log-time {
+            color: #858585;
+            margin-right: 10px;
+        }
+        .log-type {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .log-type.account { color: #4CAF50; }
+        .log-type.positions { color: #2196F3; }
+        .log-type.stats { color: #FF9800; }
+        .log-type.trade { color: #9C27B0; }
+        .position-item {
+            background: #f8f9fa;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+        }
+        .position-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .position-details {
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Real-time Sync Test Dashboard</h1>
+        
+        <div class="grid">
+            <!-- Connection Status -->
+            <div class="card">
+                <h2>🔌 Connection Status</h2>
+                <div class="status">
+                    <div class="status-dot loading" id="ws-status"></div>
+                    <span id="ws-text">Connecting to WebSocket...</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot disconnected" id="mt5-status"></div>
+                    <span id="mt5-text">MT5: Disconnected</span>
+                </div>
+                <div class="status">
+                    <div class="status-dot disconnected" id="telegram-status"></div>
+                    <span id="telegram-text">Telegram: Disconnected</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Updates Received:</span>
+                    <span class="metric-value" id="update-count">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Last Update:</span>
+                    <span class="metric-value" id="last-update">Never</span>
+                </div>
+            </div>
+
+            <!-- Account Info -->
+            <div class="card">
+                <h2>💰 Account Information</h2>
+                <div class="metric">
+                    <span class="metric-label">Balance:</span>
+                    <span class="metric-value" id="balance">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Equity:</span>
+                    <span class="metric-value" id="equity">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Profit:</span>
+                    <span class="metric-value" id="profit">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Margin:</span>
+                    <span class="metric-value" id="margin">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Free Margin:</span>
+                    <span class="metric-value" id="free-margin">-</span>
+                </div>
+            </div>
+
+            <!-- Trade Stats -->
+            <div class="card">
+                <h2>📊 Trade Statistics</h2>
+                <div class="metric">
+                    <span class="metric-label">Total Trades:</span>
+                    <span class="metric-value" id="total-trades">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Open Trades:</span>
+                    <span class="metric-value" id="open-trades">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Win Rate:</span>
+                    <span class="metric-value" id="win-rate">0%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total P/L:</span>
+                    <span class="metric-value" id="total-pnl">$0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Open Positions -->
+        <div class="card">
+            <h2>📈 Open Positions (<span id="position-count">0</span>)</h2>
+            <div id="positions-list">
+                <p style="color: #999; text-align: center; padding: 20px;">No open positions</p>
+            </div>
+        </div>
+
+        <!-- Update Log -->
+        <div class="card">
+            <h2>📝 Real-time Update Log</h2>
+            <div class="log" id="update-log">
+                <div class="log-entry">
+                    <span class="log-time">--:--:--</span>
+                    <span class="log-type">SYSTEM</span>
+                    <span>Waiting for updates...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let updateCount = 0;
+        const maxLogEntries = 50;
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            addLog('SYSTEM', `Connecting to ${wsUrl}...`);
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                addLog('SYSTEM', 'WebSocket connected!');
+                document.getElementById('ws-status').className = 'status-dot connected';
+                document.getElementById('ws-text').textContent = 'WebSocket: Connected';
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleUpdate(data);
+                } catch (e) {
+                    console.error('Error parsing message:', e);
+                }
+            };
+
+            ws.onerror = (error) => {
+                addLog('ERROR', 'WebSocket error occurred');
+                document.getElementById('ws-status').className = 'status-dot disconnected';
+            };
+
+            ws.onclose = () => {
+                addLog('SYSTEM', 'WebSocket disconnected. Reconnecting in 3s...');
+                document.getElementById('ws-status').className = 'status-dot disconnected';
+                document.getElementById('ws-text').textContent = 'WebSocket: Disconnected';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function handleUpdate(data) {
+            updateCount++;
+            document.getElementById('update-count').textContent = updateCount;
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+            switch (data.type) {
+                case 'account_update':
+                    handleAccountUpdate(data.data);
+                    break;
+                case 'positions_update':
+                    handlePositionsUpdate(data.data);
+                    break;
+                case 'stats_update':
+                    handleStatsUpdate(data.data);
+                    break;
+                case 'status':
+                    handleStatusUpdate(data.data);
+                    break;
+                case 'trade_event':
+                    handleTradeEvent(data);
+                    break;
+            }
+        }
+
+        function handleAccountUpdate(account) {
+            addLog('ACCOUNT', `Balance: ${account.balance}, Equity: ${account.equity}`);
+            
+            document.getElementById('balance').textContent = `$${account.balance?.toFixed(2) || '0.00'}`;
+            document.getElementById('equity').textContent = `$${account.equity?.toFixed(2) || '0.00'}`;
+            
+            const profit = account.profit || 0;
+            const profitEl = document.getElementById('profit');
+            profitEl.textContent = `$${profit.toFixed(2)}`;
+            profitEl.className = `metric-value ${profit >= 0 ? 'positive' : 'negative'}`;
+            
+            document.getElementById('margin').textContent = `$${account.margin?.toFixed(2) || '0.00'}`;
+            document.getElementById('free-margin').textContent = `$${account.free_margin?.toFixed(2) || '0.00'}`;
+        }
+
+        function handlePositionsUpdate(data) {
+            const positions = data.positions || [];
+            addLog('POSITIONS', `${positions.length} open position(s)`);
+            
+            document.getElementById('position-count').textContent = positions.length;
+            
+            const listEl = document.getElementById('positions-list');
+            if (positions.length === 0) {
+                listEl.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No open positions</p>';
+            } else {
+                listEl.innerHTML = positions.map(pos => `
+                    <div class="position-item">
+                        <div class="position-header">
+                            <span>${pos.symbol} ${pos.direction}</span>
+                            <span class="${pos.profit >= 0 ? 'positive' : 'negative'}">
+                                $${pos.profit?.toFixed(2) || '0.00'}
+                            </span>
+                        </div>
+                        <div class="position-details">
+                            Entry: ${pos.entry_price?.toFixed(5)} | 
+                            Current: ${pos.current_price?.toFixed(5)} | 
+                            Lots: ${pos.lot_size}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function handleStatsUpdate(stats) {
+            addLog('STATS', `Total: ${stats.total_trades}, Open: ${stats.open_trades}`);
+            
+            document.getElementById('total-trades').textContent = stats.total_trades || 0;
+            document.getElementById('open-trades').textContent = stats.open_trades || 0;
+            document.getElementById('win-rate').textContent = `${(stats.win_rate || 0).toFixed(1)}%`;
+            
+            const totalPnl = stats.total_pnl || 0;
+            const pnlEl = document.getElementById('total-pnl');
+            pnlEl.textContent = `$${totalPnl.toFixed(2)}`;
+            pnlEl.className = `metric-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
+        }
+
+        function handleStatusUpdate(status) {
+            // Update MT5 status
+            const mt5Status = document.getElementById('mt5-status');
+            const mt5Text = document.getElementById('mt5-text');
+            if (status.mt5_connected) {
+                mt5Status.className = 'status-dot connected';
+                mt5Text.textContent = 'MT5: Connected';
+            } else {
+                mt5Status.className = 'status-dot disconnected';
+                mt5Text.textContent = 'MT5: Disconnected';
+            }
+
+            // Update Telegram status
+            const telegramStatus = document.getElementById('telegram-status');
+            const telegramText = document.getElementById('telegram-text');
+            if (status.telegram_connected) {
+                telegramStatus.className = 'status-dot connected';
+                telegramText.textContent = 'Telegram: Connected';
+            } else {
+                telegramStatus.className = 'status-dot disconnected';
+                telegramText.textContent = 'Telegram: Disconnected';
+            }
+        }
+
+        function handleTradeEvent(data) {
+            addLog('TRADE', `${data.event}: ${data.data.symbol} (${data.data.trade_id.substring(0, 8)})`);
+        }
+
+        function addLog(type, message) {
+            const logEl = document.getElementById('update-log');
+            const time = new Date().toLocaleTimeString();
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">${time}</span>
+                <span class="log-type ${type.toLowerCase()}">${type}</span>
+                <span>${message}</span>
+            `;
+            
+            logEl.insertBefore(entry, logEl.firstChild);
+            
+            // Keep only last N entries
+            while (logEl.children.length > maxLogEntries) {
+                logEl.removeChild(logEl.lastChild);
+            }
+        }
+
+        // Connect on load
+        connectWebSocket();
+    </script>
+</body>
+</html>

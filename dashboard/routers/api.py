@@ -48,22 +48,35 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time updates"""
     await manager.connect(websocket)
+    logger.info(f"WebSocket client connected. Total clients: {len(manager.active_connections)}")
+    
     try:
+        # Send initial snapshot
+        if bot_state.is_running and bot_state.is_connected_mt5:
+            try:
+                account_info = await broker_client.get_account_info()
+                if account_info:
+                    await websocket.send_json({
+                        "type": "account_update",
+                        "data": account_info.to_dict()
+                    })
+            except:
+                pass
+        
+        # Keep connection alive and handle incoming messages
         while True:
-            await asyncio.sleep(1)
-            # Send bot status updates
-            await websocket.send_json({
-                "type": "status",
-                "data": {
-                    "bot_running": bot_state.is_running,
-                    "telegram_connected": bot_state.is_connected_telegram,
-                    "mt5_connected": bot_state.is_connected_mt5
-                }
-            })
+            try:
+                # Wait for any client messages (ping/pong)
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30)
+            except asyncio.TimeoutError:
+                # Send keepalive ping
+                await websocket.send_json({"type": "ping"})
+    
     except (WebSocketDisconnect, ClientDisconnected, ConnectionClosedOK):
         manager.disconnect(websocket)
+        logger.info(f"WebSocket client disconnected. Remaining clients: {len(manager.active_connections)}")
     except Exception as e:
-        logger.error(f"WebSocket error in /api/ws: {type(e).__name__}: {e}", exc_info=True)
+        logger.error(f"WebSocket error: {type(e).__name__}: {e}")
         manager.disconnect(websocket)
 
 # Status & Bot Control
@@ -156,7 +169,7 @@ async def get_mt5_positions():
                 "position_ticket": str(ticket),
                 "symbol": p.get("symbol", ""),
                 "lot_size": p.get("volume", 0),
-                "profit": p.get("profit", 0) + p.get("swap", 0) + p.get("commission", 0),
+                "profit": float(p.get("profit", 0)) + float(p.get("swap", 0)) + (float(p.get("commission", 0)) if isinstance(p.get("commission"), (int, float)) else 0),
                 "entry_price": p.get("openPrice", 0),
                 "current_price": p.get("currentPrice", 0),
                 "direction": "BUY" if p.get("type") == "POSITION_TYPE_BUY" else "SELL",

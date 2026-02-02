@@ -220,7 +220,13 @@
                     } else {
                         document.documentElement.classList.remove('bot-running');
                     }
-                }
+                },
+                'account.balance'() { this.triggerNumberAnimation(); },
+                'account.equity'() { this.triggerNumberAnimation(); },
+                'account.free_margin'() { this.triggerNumberAnimation(); },
+                'account.profit'() { this.triggerNumberAnimation(); },
+                'stats.win_rate'() { this.triggerNumberAnimation(); },
+                'mt5Positions.length'() { this.triggerNumberAnimation(); }
             },
             computed: {
                 currencySymbol() {
@@ -340,6 +346,27 @@
                         } catch (e) {
                             // Ignore errors from icon initialization
                         }
+                    });
+                },
+                triggerNumberAnimation() {
+                    this.$nextTick(() => {
+                        document.querySelectorAll('.animated-number').forEach(el => {
+                            const newValue = parseFloat(el.getAttribute('data-value'));
+                            const oldValue = parseFloat(el.getAttribute('data-old-value') || newValue);
+                            
+                            if (newValue !== oldValue && !isNaN(newValue) && !isNaN(oldValue)) {
+                                el.classList.remove('number-increase', 'number-decrease');
+                                void el.offsetWidth;
+                                
+                                if (newValue > oldValue) {
+                                    el.classList.add('number-increase');
+                                } else if (newValue < oldValue) {
+                                    el.classList.add('number-decrease');
+                                }
+                                
+                                el.setAttribute('data-old-value', newValue);
+                            }
+                        });
                     });
                 },
                 debouncedInitIcons() {
@@ -1162,7 +1189,38 @@
                         }
                         // Handle real-time positions updates
                         else if (data.type === 'positions_update') {
-                            this.mt5Positions = data.data.positions || [];
+                            const newPositions = data.data.positions || [];
+                            // Force complete array replacement to trigger Vue reactivity
+                            this.mt5Positions = newPositions.map(pos => ({
+                                id: pos.id || pos.position_ticket,
+                                position_ticket: pos.position_ticket || pos.id,
+                                symbol: pos.symbol,
+                                direction: pos.direction,
+                                lot_size: pos.lot_size || pos.volume,
+                                entry_price: pos.entry_price || pos.open_price,
+                                current_price: pos.current_price || pos.price_current || 0,
+                                stop_loss: pos.stop_loss || pos.sl,
+                                take_profit: pos.take_profit || pos.tp,
+                                take_profit_1: pos.take_profit_1 || pos.tp1,
+                                profit: pos.profit || 0,
+                                swap: pos.swap || 0,
+                                commission: pos.commission || 0,
+                                time: pos.time
+                            }));
+                        }
+                        // Handle real-time stats updates
+                        else if (data.type === 'stats_update') {
+                            const statsData = data.data;
+                            this.stats = {
+                                total_trades: statsData.total_trades || 0,
+                                closed_trades: statsData.closed_trades || 0,
+                                winning_trades: statsData.winning_trades || 0,
+                                losing_trades: statsData.losing_trades || 0,
+                                win_rate: statsData.win_rate || 0,
+                                total_profit: statsData.total_profit || 0,
+                                open_trades: statsData.open_trades || 0,
+                                last_updated: statsData.last_updated || new Date().toISOString()
+                            };
                         }
                         // Handle startup progress updates
                         else if (data.type === 'startup_progress') {
@@ -2230,34 +2288,13 @@
                     // Always add dashboard loaded activity
                     this.addActivity('Dashboard loaded', 'success', 'check');
                     
-                    
-                    // Always try to load positions
                     await this.refreshPositions();
-                    
-                    // Always try to load channel info (API returns cached data if Telegram not connected)
                     await this.refreshChannels();
-                    
-                    // Fetch Telegram user info
                     await this.fetchTelegramUser();
                 } catch (e) {
                     console.error('Initial status check failed:', e);
-                    // Still add activity on error
                     this.addActivity('Dashboard loaded', 'warning', 'alert-circle');
                 }
-                
-                // Refresh data every 10 seconds for real-time updates (reduced from 2s to minimize log noise)
-                setInterval(() => {
-                    this.refreshData();
-                    // Always try to refresh positions
-                    this.refreshPositions();
-                }, 10000);
-                
-                // Sync uptime from server and start local counter if bot is running
-                setInterval(() => {
-                    if (this.status.bot_running && this.status.uptime_seconds) {
-                        this.displayUptime = this.status.uptime_seconds;
-                    }
-                }, 10000);
                 
                 // Firebase real-time listeners
                 if (window.firebaseDB) {
@@ -2368,7 +2405,30 @@
                 });
             },
             updated() {
-                // Disabled: Lucide icon reinitialization conflicts with Vue's virtual DOM
-                // All dynamic icons should use inline SVGs instead of data-lucide
+                // Trigger animations for changed numbers
+                this.$nextTick(() => {
+                    document.querySelectorAll('.animated-number').forEach(el => {
+                        const newValue = parseFloat(el.getAttribute('data-value'));
+                        const oldValue = parseFloat(el.getAttribute('data-old-value') || newValue);
+                        
+                        if (newValue !== oldValue && !isNaN(newValue) && !isNaN(oldValue)) {
+                            // Remove existing animation classes
+                            el.classList.remove('number-increase', 'number-decrease');
+                            
+                            // Trigger reflow to restart animation
+                            void el.offsetWidth;
+                            
+                            // Add appropriate animation class
+                            if (newValue > oldValue) {
+                                el.classList.add('number-increase');
+                            } else if (newValue < oldValue) {
+                                el.classList.add('number-decrease');
+                            }
+                            
+                            // Store current value as old value for next comparison
+                            el.setAttribute('data-old-value', newValue);
+                        }
+                    });
+                });
             }
         }).mount('#app');

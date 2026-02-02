@@ -24,9 +24,9 @@ from utils.logging_utils import log_trade_event
 logger = logging.getLogger("evobot.broker.metaapi")
 
 # Cache settings to avoid rate limiting - reduced for more real-time data
-ACCOUNT_INFO_CACHE_TTL = 5  # seconds - cache account info for 5 seconds
-POSITIONS_CACHE_TTL = 3  # seconds - cache positions for 3 seconds
-PRICE_CACHE_TTL = 2  # seconds - cache prices for 2 seconds
+ACCOUNT_INFO_CACHE_TTL = 1  # seconds - cache account info for 1 second
+POSITIONS_CACHE_TTL = 1  # seconds - cache positions for 1 second
+PRICE_CACHE_TTL = 1  # seconds - cache prices for 1 second
 
 # Rate limit backoff settings
 RATE_LIMIT_BACKOFF_BASE = 60  # Base backoff time in seconds when rate limited
@@ -246,8 +246,8 @@ class MetaApiClient:
         
         current_time = time.time()
         
-        # Check if we're rate limited - return cached data
-        if self._is_rate_limited():
+        # Check if we're rate limited - return cached data (unless force_refresh for realtime updates)
+        if self._is_rate_limited() and not force_refresh:
             logger.debug(f"Rate limited - returning cached account info")
             return self._account_info_cache or self.account_info
         
@@ -559,8 +559,8 @@ class MetaApiClient:
         
         current_time = time.time()
         
-        # Check if we're rate limited - return cached data
-        if self._is_rate_limited():
+        # Check if we're rate limited - return cached data (unless force_refresh for realtime updates)
+        if self._is_rate_limited() and not force_refresh:
             logger.debug(f"Rate limited - returning cached positions (expires in {self._rate_limit_until - current_time:.0f}s)")
             return self._positions_cache
         
