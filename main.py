@@ -20,6 +20,9 @@ from broker import broker_client
 from core.trade_manager import trade_manager
 from core.risk_manager import risk_manager
 from core.notifier import notifier
+from core.signal_storage import signal_storage
+from core.firebase_service import firebase_service
+from core.signal_tracker import signal_outcome_tracker
 
 logger = setup_logging("evobot.main")
 
@@ -27,6 +30,13 @@ logger = setup_logging("evobot.main")
 async def main():
     """Main function to start and run the bot"""
     logger.info("EvoBot Trading System starting...")
+    
+    # Initialize Firebase
+    firebase_service.initialize()
+    if firebase_service.db_ref:
+        # Pass the root db reference, signal_storage will create its own child reference
+        signal_storage.set_firebase(firebase_service.db_ref)
+        logger.info("Signal storage connected to Firebase")
     
     # Initialize and connect broker
     logger.info("Connecting to MetaTrader 5...")
@@ -41,6 +51,9 @@ async def main():
     # Register notifier with telegram listener and trade manager
     notifier.set_telegram_client(telegram_listener)
     trade_manager.add_trade_listener(notifier.handle_trade_event)
+    
+    # Register signal outcome tracker
+    trade_manager.add_trade_listener(signal_outcome_tracker.handle_trade_event)
     
     # Register signal handler
     telegram_listener.on_signal(handle_signal)
@@ -86,6 +99,8 @@ async def handle_signal(signal):
     if not can_trade:
         logger.warning(f"Skipping signal {signal.id} due to risk: {reason}")
         await notifier.notify_risk_alert("Trade Skipped", reason)
+        # Update signal status
+        signal_storage.update_message(signal.id, {"status": "rejected", "executed": False})
         return
     
     # Process signal with trade manager
@@ -93,8 +108,15 @@ async def handle_signal(signal):
     
     if trade:
         logger.info(f"Signal {signal.id} processed. Trade ID: {trade.id}")
+        # Link signal to trade
+        signal_storage.link_trade(signal.id, trade.id)
+        signal_storage.update_message(signal.id, {
+            "actual_entry_price": trade.entry_price,
+            "lot_size": trade.initial_lot_size
+        })
     else:
         logger.warning(f"Signal {signal.id} not resulting in a trade or an error occurred.")
+        signal_storage.update_message(signal.id, {"status": "failed", "executed": False})
 
 
 async def _check_daily_summary():

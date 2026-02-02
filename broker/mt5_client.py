@@ -498,7 +498,7 @@ class MT5Client:
                 logger.error(f"Error closing position: {e}", exc_info=True)
                 return False, str(e)
     
-    async def get_positions(self, symbol: Optional[str] = None) -> List[dict]:
+    async def get_positions(self, symbol: Optional[str] = None, force_refresh: bool = False) -> List[dict]:
         """Get open positions"""
         if not self.connected:
             return []
@@ -536,7 +536,7 @@ class MT5Client:
             logger.error(f"Error getting positions: {e}")
             return []
     
-    async def get_account_info(self) -> Optional[AccountInfo]:
+    async def get_account_info(self, force_refresh: bool = False) -> Optional[AccountInfo]:
         """Get updated account information"""
         if not self.connected:
             return None

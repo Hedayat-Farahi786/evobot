@@ -294,6 +294,30 @@ class TelegramListener:
                 for signal in signals:
                     if signal.parsed_successfully:
                         logger.info(f"Parsed signal: {signal.symbol} {signal.direction} - {signal.signal_type.value}")
+                        
+                        # Store only successfully parsed signals
+                        from models.signal_message import SignalMessage
+                        from core.signal_storage import signal_storage
+                        
+                        signal_msg = SignalMessage(
+                            channel_id=str(chat_id),
+                            channel_name=getattr(chat, 'title', None) or getattr(chat, 'first_name', 'Unknown'),
+                            message_id=message.id,
+                            text=text,
+                            timestamp=message.date or datetime.utcnow(),
+                            symbol=signal.symbol,
+                            direction=signal.direction.value if signal.direction else None,
+                            signal_type=signal.signal_type.value,
+                            entry_min=signal.entry_min,
+                            entry_max=signal.entry_max,
+                            stop_loss=signal.stop_loss,
+                            take_profit_1=signal.take_profit_1,
+                            take_profit_2=signal.take_profit_2,
+                            take_profit_3=signal.take_profit_3
+                        )
+                        signal_storage.add_message(signal_msg)
+                        logger.info(f"✅ Signal stored: {signal_msg.id} - {signal_msg.symbol} {signal_msg.direction}")
+                        
                         for handler in self.signal_handlers:
                             try:
                                 await self._call_handler(handler, signal)

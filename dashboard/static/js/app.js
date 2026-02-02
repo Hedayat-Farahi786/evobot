@@ -185,7 +185,31 @@
                     // Telegram channels
                     telegramChannels: [],
                     loadingChannels: false,
-                    channelMetadata: {}
+                    channelMetadata: {},
+                    // Dummy signals data
+                    dummySignals: [
+                        { id: 1, channel: 'Premium Signals', symbol: 'XAUUSD', direction: 'BUY', entry: '2050.00', sl: '2045.00', tp1: '2055.00', tp2: '2060.00', tp3: '2065.00', status: 'TP3 Hit', profit: 150.50, time: '2 hours ago' },
+                        { id: 2, channel: 'Forex Masters', symbol: 'EURUSD', direction: 'SELL', entry: '1.0850', sl: '1.0880', tp1: '1.0820', tp2: '1.0800', tp3: '1.0780', status: 'TP2 Hit', profit: 85.30, time: '4 hours ago' },
+                        { id: 3, channel: 'Gold Traders', symbol: 'XAUUSD', direction: 'SELL', entry: '2048.50', sl: '2053.00', tp1: '2043.00', tp2: '2038.00', tp3: '2033.00', status: 'Active', profit: null, time: '1 hour ago' },
+                        { id: 4, channel: 'Premium Signals', symbol: 'GBPUSD', direction: 'BUY', entry: '1.2650', sl: '1.2620', tp1: '1.2680', tp2: '1.2710', tp3: '1.2740', status: 'TP1 Hit', profit: 45.20, time: '3 hours ago' },
+                        { id: 5, channel: 'Forex Masters', symbol: 'USDJPY', direction: 'BUY', entry: '148.50', sl: '148.00', tp1: '149.00', tp2: '149.50', tp3: '150.00', status: 'SL Hit', profit: -50.00, time: '5 hours ago' },
+                        { id: 6, channel: 'Gold Traders', symbol: 'XAUUSD', direction: 'BUY', entry: '2052.00', sl: '2047.00', tp1: '2057.00', tp2: '2062.00', tp3: '2067.00', status: 'Active', profit: null, time: '30 mins ago' }
+                    ],
+                    selectedChannel: '',
+                    // Signal messages data
+                    signalMessages: [],
+                    filteredSignalMessages: [],
+                    signalChannelFilter: '',
+                    signalStatusFilter: '',
+                    signalDateFilter: 'all',
+                    signalStartDate: '',
+                    signalEndDate: '',
+                    loadingSignals: false,
+                    signalAnalytics: {},
+                    expandedSignals: {},
+                    showChannelDropdown: false,
+                    showDateDropdown: false,
+                    showSignalChart: false
                 };
             },
             computed: {
@@ -201,6 +225,30 @@
                 },
                 totalPnL() {
                     return this.mt5Positions.reduce((sum, pos) => sum + (pos.profit || 0), 0);
+                },
+                
+                filteredSignals() {
+                    if (!this.selectedChannel) return this.dummySignals;
+                    return this.dummySignals.filter(s => s.channel === this.selectedChannel);
+                },
+                
+                channelStats() {
+                    const signals = this.filteredSignals;
+                    const closed = signals.filter(s => s.status !== 'Active');
+                    const wins = closed.filter(s => s.profit && s.profit > 0);
+                    const tp3Hits = signals.filter(s => s.status === 'TP3 Hit');
+                    const totalProfit = closed.reduce((sum, s) => sum + (s.profit || 0), 0);
+                    
+                    return {
+                        total: signals.length,
+                        closed: closed.length,
+                        wins: wins.length,
+                        winRate: closed.length > 0 ? Math.round((wins.length / closed.length) * 100) : 0,
+                        profit: totalProfit,
+                        avgProfit: closed.length > 0 ? totalProfit / closed.length : 0,
+                        tp3Count: tp3Hits.length,
+                        tp3Rate: signals.length > 0 ? Math.round((tp3Hits.length / signals.length) * 100) : 0
+                    };
                 },
                 hasRequiredSettings() {
                     // Check if minimum required settings are configured
@@ -1405,6 +1453,190 @@
                         
                     }
                 },
+                
+                async loadSignalMessages() {
+                    this.loadingSignals = true;
+                    try {
+                        let url = '/api/signals/messages?limit=200';
+                        
+                        if (this.signalChannelFilter) {
+                            url += `&channel_id=${this.signalChannelFilter}`;
+                        }
+                        
+                        if (this.signalStartDate) {
+                            url += `&start_date=${this.signalStartDate}T00:00:00`;
+                        }
+                        
+                        if (this.signalEndDate) {
+                            url += `&end_date=${this.signalEndDate}T23:59:59`;
+                        }
+                        
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.signalMessages = data.messages || [];
+                            this.filterSignalMessages();
+                            
+                            // Load analytics if channel filter is set
+                            if (this.signalChannelFilter) {
+                                await this.loadChannelAnalytics(this.signalChannelFilter);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Failed to load signal messages:', error);
+                        this.notify('Failed to load signals', 'error');
+                    } finally {
+                        this.loadingSignals = false;
+                    }
+                },
+                
+                filterSignalMessages() {
+                    let filtered = this.signalMessages;
+                    
+                    // Apply status filter
+                    if (this.signalStatusFilter) {
+                        filtered = filtered.filter(sig => {
+                            if (this.signalStatusFilter === 'executed') return sig.executed;
+                            if (this.signalStatusFilter === 'pending') return !sig.executed;
+                            if (this.signalStatusFilter === 'active') return sig.status === 'active';
+                            if (this.signalStatusFilter === 'closed') return ['tp3_hit', 'sl_hit', 'closed'].includes(sig.status);
+                            return true;
+                        });
+                    }
+                    
+                    this.filteredSignalMessages = filtered;
+                },
+                
+                clearDateFilters() {
+                    this.signalStartDate = '';
+                    this.signalEndDate = '';
+                    this.loadSignalMessages();
+                },
+                
+                // Date preset methods
+                setDatePreset(preset) {
+                    const today = new Date();
+                    const formatDate = (date) => date.toISOString().split('T')[0];
+                    
+                    if (preset === 'today') {
+                        this.signalStartDate = formatDate(today);
+                        this.signalEndDate = formatDate(today);
+                    } else if (preset === 'week') {
+                        const weekAgo = new Date(today);
+                        weekAgo.setDate(today.getDate() - 7);
+                        this.signalStartDate = formatDate(weekAgo);
+                        this.signalEndDate = formatDate(today);
+                    } else if (preset === 'month') {
+                        const monthAgo = new Date(today);
+                        monthAgo.setMonth(today.getMonth() - 1);
+                        this.signalStartDate = formatDate(monthAgo);
+                        this.signalEndDate = formatDate(today);
+                    } else if (preset === 'year') {
+                        const yearAgo = new Date(today);
+                        yearAgo.setFullYear(today.getFullYear() - 1);
+                        this.signalStartDate = formatDate(yearAgo);
+                        this.signalEndDate = formatDate(today);
+                    }
+                    
+                    this.loadSignalMessages();
+                },
+                
+                isDatePresetActive(preset) {
+                    if (!this.signalStartDate || !this.signalEndDate) return false;
+                    
+                    const today = new Date();
+                    const formatDate = (date) => date.toISOString().split('T')[0];
+                    
+                    if (preset === 'today') {
+                        return this.signalStartDate === formatDate(today) && this.signalEndDate === formatDate(today);
+                    } else if (preset === 'week') {
+                        const weekAgo = new Date(today);
+                        weekAgo.setDate(today.getDate() - 7);
+                        return this.signalStartDate === formatDate(weekAgo) && this.signalEndDate === formatDate(today);
+                    } else if (preset === 'month') {
+                        const monthAgo = new Date(today);
+                        monthAgo.setMonth(today.getMonth() - 1);
+                        return this.signalStartDate === formatDate(monthAgo) && this.signalEndDate === formatDate(today);
+                    } else if (preset === 'year') {
+                        const yearAgo = new Date(today);
+                        yearAgo.setFullYear(today.getFullYear() - 1);
+                        return this.signalStartDate === formatDate(yearAgo) && this.signalEndDate === formatDate(today);
+                    }
+                    
+                    return false;
+                },
+                
+                getDateRangeLabel() {
+                    if (this.isDatePresetActive('week')) return 'This Week';
+                    if (this.isDatePresetActive('month')) return 'This Month';
+                    if (this.isDatePresetActive('year')) return 'This Year';
+                    if (this.signalStartDate && this.signalEndDate) {
+                        return `${this.signalStartDate} - ${this.signalEndDate}`;
+                    }
+                    return 'Select Date Range';
+                },
+                
+                clearAllFilters() {
+                    this.signalStartDate = '';
+                    this.signalEndDate = '';
+                    this.signalStatusFilter = '';
+                    this.signalChannelFilter = '';
+                    this.showDateDropdown = false;
+                    this.loadSignalMessages();
+                },
+                
+                // Status filter methods
+                setStatusFilter(status) {
+                    this.signalStatusFilter = status;
+                    this.filterSignalMessages();
+                },
+                
+                getStatusCount(status) {
+                    if (!this.signalMessages || this.signalMessages.length === 0) return 0;
+                    
+                    if (status === 'executed') {
+                        return this.signalMessages.filter(sig => sig.executed).length;
+                    } else if (status === 'pending') {
+                        return this.signalMessages.filter(sig => !sig.executed).length;
+                    } else if (status === 'active') {
+                        return this.signalMessages.filter(sig => sig.status === 'active').length;
+                    } else if (status === 'closed') {
+                        return this.signalMessages.filter(sig => ['tp3_hit', 'sl_hit', 'closed'].includes(sig.status)).length;
+                    }
+                    
+                    return 0;
+                },
+                
+                // Channel dropdown methods
+                selectChannel(channelId) {
+                    this.signalChannelFilter = channelId;
+                    this.showChannelDropdown = false;
+                    this.loadSignalMessages();
+                },
+                
+                getChannelSignalCount(channelId) {
+                    if (!this.signalMessages || this.signalMessages.length === 0) return 0;
+                    return this.signalMessages.filter(sig => String(sig.channel_id) === String(channelId)).length;
+                },
+                
+                toggleSignalMessage(signalId) {
+                    this.expandedSignals[signalId] = !this.expandedSignals[signalId];
+                },
+                
+                async loadChannelAnalytics(channelId) {
+                    try {
+                        const response = await fetch(`/api/signals/channel/${channelId}/analytics`);
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.signalAnalytics = data.analytics || {};
+                        }
+                    } catch (error) {
+                        console.error('Failed to load channel analytics:', error);
+                    }
+                },
+                
                 // Navbar methods
                 logout() {
                     // Close user menu first
@@ -1442,6 +1674,12 @@
                     localStorage.setItem('evobot-active-nav', item);
                     console.log('Navigated to:', item, '- Saved to localStorage');
                     this.showUserMenu = false;
+                    
+                    // Load signals when navigating to signals page
+                    if (item === 'signals') {
+                        this.loadSignalMessages();
+                    }
+                    
                     // Scroll to top of content
                     const content = document.querySelector('.content');
                     if (content) content.scrollTo(0, 0);
@@ -1829,6 +2067,10 @@
                 if (savedNav) {
                     this.activeNavItem = savedNav;
                     console.log('Restored navigation to:', savedNav);
+                    // Load signals if that's the saved page
+                    if (savedNav === 'signals') {
+                        this.loadSignalMessages();
+                    }
                 } else {
                     this.activeNavItem = 'dashboard';
                     console.log('No saved navigation found, defaulting to dashboard');
@@ -2101,6 +2343,16 @@
                 
                 // Initialize Lucide icons once on mount
                 this.initIcons();
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.filter-dropdown-compact')) {
+                        this.showChannelDropdown = false;
+                    }
+                    if (!e.target.closest('.date-range-btn') && !e.target.closest('.date-range-dropdown')) {
+                        this.showDateDropdown = false;
+                    }
+                });
             },
             updated() {
                 // Disabled: Lucide icon reinitialization conflicts with Vue's virtual DOM

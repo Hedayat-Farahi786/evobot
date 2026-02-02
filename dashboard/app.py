@@ -21,7 +21,7 @@ from dashboard.deps import get_client_ip
 from dashboard.lifecycle import auto_start_bot
 
 # Import routers
-from dashboard.routers import auth, telegram, admin, api, settings, views, channels
+from dashboard.routers import auth, telegram, admin, api, settings, views, channels, signals
 
 logger = logging.getLogger("evobot.dashboard")
 
@@ -88,6 +88,7 @@ app.include_router(api.router)
 app.include_router(settings.router)
 app.include_router(views.router)
 app.include_router(channels.router)
+app.include_router(signals.router)
 
 # WebSocket endpoint (outside /api prefix)
 from fastapi import WebSocket, WebSocketDisconnect

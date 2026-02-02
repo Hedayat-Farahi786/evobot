@@ -21,6 +21,7 @@
 }
 
 .channel-card {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 16px;
@@ -76,7 +77,14 @@
 }
 
 .channel-verified {
+    position: absolute;
+    top: 8px;
+    left: 8px;
     color: #3b82f6;
+    background: var(--bg);
+    border-radius: 50%;
+    padding: 2px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .channel-meta {
@@ -143,6 +151,7 @@
         <!-- Channels List -->
         <div v-else-if="telegramChannels.length > 0">
             <div class="channel-card" v-for="channel in telegramChannels" :key="channel.id">
+                <svg v-if="channel.verified" class="channel-verified" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <div class="channel-avatar">
                     <img v-if="channel.photo_path" :src="`/api/telegram/channel/${channel.id}/photo`" :alt="channel.title">
                     <span v-else>{{ getInitials(channel.title) }}</span>
@@ -150,7 +159,6 @@
                 <div class="channel-info">
                     <div class="channel-title">
                         {{ channel.title }}
-                        <svg v-if="channel.verified" class="channel-verified" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
                     <div class="channel-meta">
                         <span class="channel-id">ID: {{ channel.id }}</span>
