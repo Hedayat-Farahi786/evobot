@@ -57,6 +57,27 @@
             overflow: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            position: relative;
+        }
+        
+        html.bot-running::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, #22c55e 0%, #10b981 50%, #22c55e 100%);
+            background-size: 200% 100%;
+            pointer-events: none;
+            z-index: 999999;
+            animation: breathe 4s ease-in-out infinite;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+        }
+        
+        @keyframes breathe {
+            0%, 100% { opacity: 0.7; background-position: 0% 50%; }
+            50% { opacity: 0.95; background-position: 100% 50%; }
         }
         
         * {
@@ -184,32 +205,35 @@
             color: var(--success);
         }
         
-        .status-indicator .pulse {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--text-muted);
-            position: relative;
+        .status-indicator .status-icon {
+            width: 20px;
+            height: 20px;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
         }
         
-        .status-indicator.active .pulse {
-            background: var(--success);
-            animation: pulse-ring 2s infinite;
+        .status-indicator.active .status-icon {
+            color: var(--success);
         }
         
-        .status-indicator.active .pulse::after {
-            content: '';
-            position: absolute;
-            inset: -4px;
-            border-radius: 50%;
-            background: var(--success);
-            opacity: 0.4;
-            animation: pulse-ring 2s infinite;
+        .status-indicator.active .orbit-dot {
+            animation: orbit 2s linear infinite;
+            transform-origin: 12px 12px;
         }
         
-        @keyframes pulse-ring {
-            0% { transform: scale(1); opacity: 0.4; }
-            100% { transform: scale(2.5); opacity: 0; }
+        .status-indicator.active .orbit-dot-2 {
+            animation: orbit-reverse 3s linear infinite;
+            transform-origin: 12px 12px;
+        }
+        
+        @keyframes orbit {
+            from { transform: rotate(0deg) translateX(8px) rotate(0deg); }
+            to { transform: rotate(360deg) translateX(8px) rotate(-360deg); }
+        }
+        
+        @keyframes orbit-reverse {
+            from { transform: rotate(0deg) translateX(-8px) rotate(0deg); }
+            to { transform: rotate(-360deg) translateX(-8px) rotate(360deg); }
         }
         
         .status-text {
@@ -4120,17 +4144,17 @@
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.8px;
-            padding: 8px 12px;
-            margin-bottom: 4px;
+            padding: 6px 10px;
+            margin-bottom: 2px;
             transition: opacity 0.2s ease;
         }
         
         .nav-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 10px 12px;
-            border-radius: 8px;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 6px;
             color: var(--text-secondary);
             text-decoration: none;
             font-size: 13px;
@@ -4248,8 +4272,8 @@
         }
         
         .nav-icon {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -4262,21 +4286,24 @@
             white-space: nowrap;
             overflow: hidden;
             transition: opacity 0.2s ease, width 0.3s ease;
+            font-size: 13px;
         }
         
         .nav-badge {
             padding: 2px 6px;
-            border-radius: 10px;
+            border-radius: 4px;
             font-size: 9px;
             font-weight: 600;
             background: var(--accent);
             color: white;
             transition: all 0.2s ease;
             margin-left: auto;
+            letter-spacing: 0.3px;
         }
         
         .nav-badge.success {
-            background: var(--success);
+            background: var(--text);
+            color: var(--bg);
         }
         
         .nav-badge.warning {
@@ -4316,6 +4343,7 @@
         
         /* Compact Account Section in Left Navbar */
         .navbar-account-compact {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             padding: 8px 12px;
             margin: 0 8px 8px 8px;
             background: var(--bg-secondary);
@@ -4336,6 +4364,7 @@
         }
         
         .navbar-account-header {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -4361,6 +4390,7 @@
         }
         
         .navbar-account-row {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -4390,12 +4420,13 @@
         }
         
         .navbar-account-label {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             color: var(--text-muted);
         }
         
         .navbar-account-value {
             font-weight: 500;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             color: var(--text);
             transition: all 0.3s ease;
         }
@@ -4423,7 +4454,7 @@
             color: var(--danger);
         }
         
-        .left-navbar.collapsed .navbar-account-compact {
+        .left-navbar.collapsed .navbar-account-compact {`n            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             display: none;
         }
         
@@ -4481,7 +4512,7 @@
         }
         
         .user-name-compact {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
             color: var(--text);
             white-space: nowrap;
@@ -4490,7 +4521,7 @@
         }
         
         .user-username-compact {
-            font-size: 11px;
+            font-size: 12px;
             color: var(--text-muted);
             white-space: nowrap;
             overflow: hidden;
@@ -4557,7 +4588,7 @@
             border-radius: 6px;
             color: var(--text);
             text-decoration: none;
-            font-size: 13px;
+            font-size: 14px;
             transition: all 0.15s ease;
         }
         
@@ -4931,6 +4962,21 @@
     overflow: hidden;
 }
 
+/* Apply Inter font to all MT5 modal elements */
+.channel-modal[style*="max-width: 520px"] *,
+.mt5-login-modal *,
+.mt5-form-group *,
+.mt5-modal-header *,
+.mt5-modal-body *,
+.mt5-modal-footer *,
+.mt5-input,
+.mt5-form-label,
+.mt5-result-message,
+.mt5-connected-view *,
+.mt5-login-form * {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
 .mt5-modal-header {
     padding: 20px 24px;
     background: var(--bg-secondary);
@@ -4959,12 +5005,14 @@
     font-size: 17px;
     font-weight: 600;
     margin: 0 0 3px 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .mt5-modal-subtitle {
     font-size: 13px;
     color: var(--text-secondary);
     margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .modal-close-btn {
@@ -5003,6 +5051,7 @@
     font-weight: 500;
     color: var(--text-secondary);
     margin-bottom: 8px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .mt5-form-group input {
@@ -5014,6 +5063,7 @@
     background: var(--bg-secondary);
     color: var(--text);
     transition: all 0.2s;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
 }
 
 .mt5-form-group input:focus {
@@ -5029,6 +5079,7 @@
 
 .mt5-form-group input::placeholder {
     color: var(--text-muted);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
 }
 
 .mt5-test-result {
@@ -5039,6 +5090,7 @@
     border-radius: 8px;
     font-size: 13px;
     margin-top: 16px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .mt5-test-result.success {
@@ -5124,6 +5176,7 @@
     font-size: 13px;
     color: var(--text);
     font-weight: 500;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .mt5-server-dropdown::-webkit-scrollbar {
@@ -5152,6 +5205,7 @@
     padding: 16px;
     color: var(--text-muted);
     font-size: 13px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .mt5-server-loading .spinner {
@@ -9007,3 +9061,4 @@
     border-color: var(--danger);
     color: var(--danger);
 }
+

@@ -233,12 +233,36 @@
                                     <span class="mt5-stat-value">{{ currencySymbol }}{{ formatNumber(account.balance) }}</span>
                                 </div>
                                 <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Equity</span>
+                                    <span class="mt5-stat-value">{{ currencySymbol }}{{ formatNumber(account.equity) }}</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Margin</span>
+                                    <span class="mt5-stat-value">{{ currencySymbol }}{{ formatNumber(account.margin) }}</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Free Margin</span>
+                                    <span class="mt5-stat-value">{{ currencySymbol }}{{ formatNumber(account.free_margin) }}</span>
+                                </div>
+                                <div class="mt5-stat-item">
                                     <span class="mt5-stat-label">Leverage</span>
                                     <span class="mt5-stat-value">1:{{ account.leverage }}</span>
                                 </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Currency</span>
+                                    <span class="mt5-stat-value">{{ account.currency || 'USD' }}</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Profit</span>
+                                    <span class="mt5-stat-value" :class="account.profit >= 0 ? 'profit-positive' : 'profit-negative'">{{ account.profit >= 0 ? '+' : '' }}{{ currencySymbol }}{{ formatNumber(account.profit) }}</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Margin Level</span>
+                                    <span class="mt5-stat-value">{{ account.margin > 0 ? ((account.equity / account.margin) * 100).toFixed(2) : '∞' }}%</span>
+                                </div>
                             </div>
                         </div>
-                        <button class="btn btn-danger" @click="logoutMT5" style="width: 100%; margin-top: 16px;">
+                        <button class="btn btn-danger" @click="confirmMT5Disconnect" style="width: 100%; margin-top: 16px;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
                             Disconnect Account
                         </button>
@@ -411,6 +435,24 @@
             </div>
         </div>
         
+        <!-- MT5 Disconnect Confirmation Modal -->
+        <div class="confirm-overlay" v-if="showMT5DisconnectModal" @click.self="showMT5DisconnectModal = false">
+            <div class="confirm-modal">
+                <div class="confirm-icon logout">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                </div>
+                <h3 class="confirm-title">Disconnect MT5 Account?</h3>
+                <p class="confirm-message">Are you sure you want to disconnect from MT5? You will need to login again to reconnect your trading account.</p>
+                <div class="confirm-actions">
+                    <button class="btn" @click="showMT5DisconnectModal = false">Cancel</button>
+                    <button class="btn btn-danger" @click="logoutMT5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                        Disconnect
+                    </button>
+                </div>
+            </div>
+        </div>
+        
         <!-- Connection Error Modal -->
         <div class="confirm-overlay" v-if="showConnectionError" @click.self="showConnectionError = false">
             <div class="connection-error-modal">
@@ -516,7 +558,12 @@
             <header class="header" :class="{ 'bot-running': status.bot_running }">
                 <div class="header-left">
                     <div class="status-indicator" :class="{ active: status.bot_running }">
-                        <span class="pulse"></span>
+                        <svg class="status-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <circle class="orbit-path" cx="12" cy="12" r="8" opacity="0.3"/>
+                            <circle class="orbit-dot" cx="20" cy="12" r="2" fill="currentColor"/>
+                            <circle class="orbit-dot-2" cx="4" cy="12" r="1.5" fill="currentColor" opacity="0.6"/>
+                            <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                        </svg>
                         <span class="status-text">{{ status.bot_running ? 'Running' : 'Stopped' }}</span>
                     </div>
                     <div v-if="status.bot_running" class="uptime-badge">
@@ -611,7 +658,7 @@
                     <div class="nav-section">
                         <span class="nav-section-title">Configuration</span>
                         <div class="nav-item" :class="{ active: activeNavItem === 'settings' }" @click="navigateTo('settings')" data-tooltip="Settings">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
                             <span class="nav-text">Settings</span>
                         </div>
                         <div class="nav-item" :class="{ active: activeNavItem === 'logs' }" @click="navigateTo('logs')" data-tooltip="System Logs">
@@ -626,6 +673,7 @@
                     <div class="navbar-account-header">
                         <img src="/assets/logos/mt5.webp" alt="MT5" class="navbar-account-logo" />
                         <span>MT5 Account</span>
+                        <a href="#" @click.prevent="showMT5LoginModal = true" style="margin-left: auto; font-size: 9px; color: #888; text-decoration: none; font-weight: 500; transition: all 0.2s; padding-bottom: 2px; border-bottom: 1px solid transparent;" onmouseover="this.style.color='var(--text)'; this.style.borderBottomColor='#555'" onmouseout="this.style.color='#888'; this.style.borderBottomColor='transparent'">Manage</a>
                     </div>
                     <div class="navbar-account-row">
                         <span class="navbar-account-label">Balance</span>

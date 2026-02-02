@@ -8,6 +8,7 @@
                     showConfirmModal: false,
                     showLogoutModal: false,
                     showMT5LoginModal: false,
+                    showMT5DisconnectModal: false,
                     showChannelSearchModal: false,
                     channelSearchQuery: '',
                     channelSearchResults: [],
@@ -211,6 +212,15 @@
                     showDateDropdown: false,
                     showSignalChart: false
                 };
+            },
+            watch: {
+                'status.bot_running'(newValue) {
+                    if (newValue) {
+                        document.documentElement.classList.add('bot-running');
+                    } else {
+                        document.documentElement.classList.remove('bot-running');
+                    }
+                }
             },
             computed: {
                 currencySymbol() {
@@ -1810,8 +1820,11 @@
                         this.mt5Form.login = String(this.account.login);
                     }
                 },
+                confirmMT5Disconnect() {
+                    this.showMT5DisconnectModal = true;
+                },
                 async logoutMT5() {
-                    if (!confirm('Are you sure you want to sign out from MT5? You will need to login again.')) return;
+                    this.showMT5DisconnectModal = false;
                     try {
                         const token = localStorage.getItem('token');
                         await fetch('/api/mt5/logout', {
