@@ -1,0 +1,142 @@
+<!-- Left Sidebar Navbar -->
+            <div class="left-navbar" :class="{ collapsed: navbarCollapsed }">
+                <!-- Navbar Header -->
+                <div class="navbar-header">
+                    <div class="navbar-logo">
+                        <div class="logo-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                        </div>
+                        <span class="logo-text">EvoBot</span>
+                    </div>
+                    <button class="collapse-btn" @click="navbarCollapsed = !navbarCollapsed" title="Toggle navbar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                </div>
+                
+                <!-- Navigation Sections -->
+                <nav class="nav-sections">
+                    <!-- Dashboard Section -->
+                    <div class="nav-section">
+                        <span class="nav-section-title">Dashboard</span>
+                        <div class="nav-item" :class="{ active: activeNavItem === 'dashboard' }" @click="navigateTo('dashboard')" data-tooltip="Overview">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3"/><polyline points="12 12 20 7.5"/><polyline points="12 12 12 21"/><polyline points="12 12 4 7.5"/></svg>
+                            <span class="nav-text">Overview</span>
+                            <span v-if="status.bot_running" class="nav-badge success">ON</span>
+                        </div>
+                        <div class="nav-item" :class="{ active: activeNavItem === 'signals' }" @click="navigateTo('signals')" data-tooltip="Signals">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                            <span class="nav-text">Signals</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Trades Section -->
+                    <div class="nav-section">
+                        <span class="nav-section-title">Trading</span>
+                        <div class="nav-item" :class="{ active: activeNavItem === 'trades' }" @click="navigateTo('trades')" data-tooltip="Open Positions">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span class="nav-text">Open Positions</span>
+                            <span v-if="mt5Positions.length > 0" class="nav-badge">[[ mt5Positions.length ]]</span>
+                        </div>
+                        <div class="nav-item" :class="{ active: activeNavItem === 'history' }" @click="navigateTo('history')" data-tooltip="Trade History">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <span class="nav-text">Trade History</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Stats Section -->
+                    <div class="nav-section">
+                        <span class="nav-section-title">Performance</span>
+                        <div class="nav-item" :class="{ active: activeNavItem === 'stats' }" @click="navigateTo('stats')" data-tooltip="Statistics">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <span class="nav-text">Statistics</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Settings Section -->
+                    <div class="nav-section">
+                        <span class="nav-section-title">Configuration</span>
+                        <div class="nav-item" :class="{ active: activeNavItem === 'settings' }" @click="navigateTo('settings')" data-tooltip="Settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span class="nav-text">Settings</span>
+                        </div>
+                        <div class="nav-item" :class="{ active: activeNavItem === 'logs' }" @click="navigateTo('logs')" data-tooltip="System Logs">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                            <span class="nav-text">System Logs</span>
+                        </div>
+                    </div>
+                </nav>
+                
+                <!-- MT5 Account Details -->
+                <div class="navbar-account-compact" v-if="account.login">
+                    <div class="navbar-account-header">
+                        <img src="/assets/logos/mt5.webp" alt="MT5" class="navbar-account-logo" />
+                        <span>MT5 Account</span>
+                        <a href="#" @click.prevent="showMT5LoginModal = true" style="margin-left: auto; font-size: 9px; color: #888; text-decoration: none; font-weight: 500; transition: all 0.2s; padding-bottom: 2px; border-bottom: 1px solid transparent;" onmouseover="this.style.color='var(--text)'; this.style.borderBottomColor='#555'" onmouseout="this.style.color='#888'; this.style.borderBottomColor='transparent'">Manage</a>
+                    </div>
+                    <div class="navbar-account-row">
+                        <span class="navbar-account-label">Balance</span>
+                        <span class="navbar-account-value">[[ currencySymbol ]][[ formatNumber(account.balance) ]]</span>
+                    </div>
+                    <div class="navbar-account-row">
+                        <span class="navbar-account-label">Server</span>
+                        <span class="navbar-account-value">[[ account.server || '-' ]]</span>
+                    </div>
+                    <div class="navbar-account-row">
+                        <span class="navbar-account-label">Login</span>
+                        <span class="navbar-account-value">[[ account.login || '-' ]]</span>
+                    </div>
+                    <div class="navbar-account-row">
+                        <span class="navbar-account-label">Leverage</span>
+                        <span class="navbar-account-value">1:[[ account.leverage || 0 ]]</span>
+                    </div>
+                </div>
+                
+                <!-- MT5 Not Connected Placeholder -->
+                <div class="navbar-account-compact" v-else style="text-align: center; padding: 20px 16px; opacity: 0.6;">
+                    <div style="margin-bottom: 12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5;">
+                            <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
+                            <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+                            <line x1="6" x2="6.01" y1="6" y2="6"/>
+                            <line x1="6" x2="6.01" y1="18" y2="18"/>
+                        </svg>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">MT5 Not Connected</div>
+                    <button class="btn btn-sm btn-secondary" @click="showMT5LoginModal = true" style="font-size: 11px; padding: 6px 12px; width: 100%;">
+                        Connect MT5
+                    </button>
+                </div>
+                
+                <!-- User Profile (Bottom of Navbar) -->
+                <div class="user-profile-section">
+                    <div class="user-profile-compact" @click="showUserMenu = !showUserMenu">
+                        <div class="user-avatar-small" :style="telegramUser.photo_path ? { backgroundImage: 'url(/api/telegram/user/photo)', backgroundSize: 'cover' } : {}">
+                            <svg v-if="!telegramUser.photo_path" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <div class="user-info-compact">
+                            <div class="user-name-compact">[[ telegramUser.first_name || 'User' ]]</div>
+                            <div class="user-username-compact" v-if="telegramUser.username">@[[ telegramUser.username ]]</div>
+                            <div class="user-username-compact" v-else>[[ status.telegram_connected ? 'Connected' : 'Offline' ]]</div>
+                        </div>
+                        <button class="user-menu-btn" @click.stop="showUserMenu = !showUserMenu" title="Menu">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                        </button>
+                    </div>
+                    <!-- User Dropdown Menu -->
+                    <div v-if="showUserMenu" class="user-menu-dropdown">
+                        <a href="#" @click.prevent="activeNavItem = 'settings'; showUserMenu = false">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24"/></svg>
+                            Settings
+                        </a>
+                        <a href="#" @click.prevent="activeNavItem = 'stats'; showUserMenu = false">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            Statistics
+                        </a>
+                        <hr>
+                        <a href="#" @click.prevent="logout" class="logout-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>

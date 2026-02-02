@@ -1,0 +1,34 @@
+<!-- Channel Delete Confirmation Modal -->
+        <div class="confirm-overlay" v-if="showChannelDeleteModal" @click.self="showChannelDeleteModal = false">
+            <div class="channel-delete-modal">
+                <div class="channel-delete-header">
+                    <div class="channel-delete-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    </div>
+                    <div class="channel-delete-info">
+                        <h3 class="channel-delete-title">Remove Channel?</h3>
+                        <p class="channel-delete-subtitle">This action cannot be undone</p>
+                    </div>
+                </div>
+                <div class="channel-delete-body">
+                    <div class="channel-delete-preview" v-if="channelToDelete">
+                        <div class="channel-delete-preview-avatar">
+                            <img v-if="hasChannelPhoto(channelToDelete.id)" :src="'/api/telegram/channel/' + channelToDelete.id + '/photo'" :alt="channelToDelete.name" />
+                            <span v-else style="font-size: 14px; font-weight: 600; color: var(--text-muted);">[[ channelToDelete.name.substring(0, 1).toUpperCase() ]]</span>
+                        </div>
+                        <div class="channel-delete-preview-info">
+                            <div class="channel-delete-preview-name">[[ channelToDelete.name ]]</div>
+                            <div class="channel-delete-preview-id">[[ channelToDelete.displayId ]]</div>
+                        </div>
+                    </div>
+                    <p class="channel-delete-message">This channel will be removed from your signal sources and will no longer be monitored for trading signals.</p>
+                </div>
+                <div class="channel-delete-footer">
+                    <button class="btn btn-secondary" @click="showChannelDeleteModal = false">Cancel</button>
+                    <button class="btn btn-danger" @click="confirmChannelDelete">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                        Remove Channel
+                    </button>
+                </div>
+            </div>
+        </div>

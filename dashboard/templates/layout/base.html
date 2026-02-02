@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EvoBot - Trading Dashboard{% endblock %}</title>
+    
+    <!-- External Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyClrXVHM5xP4FqZKsjaqN7VEXAsGwNeax4",
+            authDomain: "evobot-8.firebaseapp.com",
+            databaseURL: "https://evobot-8-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "evobot-8",
+            storageBucket: "evobot-8.firebasestorage.app",
+            messagingSenderId: "349123654411",
+            appId: "1:349123654411:web:afc01b90aa06984c74e80e",
+            measurementId: "G-Q1BRXP7KRE"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        window.firebaseDB = getDatabase(app);
+        window.firebaseRef = ref;
+        window.firebaseOnValue = onValue;
+    </script>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/signal-filters.css">
+    
+    <!-- Theme Management -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div id="app">
+        {% block content %}{% endblock %}
+    </div>
+    
+    <!-- Application Scripts -->
+    {% block scripts %}
+    <script type="module" src="/static/js/app.js"></script>
+    {% endblock %}
+</body>
+</html>

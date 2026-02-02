@@ -1,0 +1,23 @@
+<!-- Confirmation Modal -->
+        <div class="confirm-overlay" v-if="showConfirmModal" @click.self="showConfirmModal = false">
+            <div class="confirm-modal">
+                <div class="confirm-icon" :class="confirmAction">
+                    <svg v-if="confirmAction === 'start'" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+                </div>
+                <h3 class="confirm-title">[[ confirmAction === 'start' ? 'Start Trading Bot?' : 'Stop Trading Bot?' ]]</h3>
+                <p class="confirm-message">
+                    [[ confirmAction === 'start' 
+                        ? 'The bot will connect to MT5 and start monitoring Telegram for trading signals.' 
+                        : 'All active monitoring will stop. Open positions will remain but no new trades will be executed.' 
+                    ]]
+                </p>
+                <div class="confirm-actions">
+                    <button class="btn" @click="showConfirmModal = false">Cancel</button>
+                    <button class="btn" :class="confirmAction === 'start' ? 'btn-success' : 'btn-danger'" @click="executeConfirmedAction">
+                        <span v-if="loading.start || loading.stop" class="spinner"></span>
+                        <span v-else>[[ confirmAction === 'start' ? 'Start Bot' : 'Stop Bot' ]]</span>
+                    </button>
+                </div>
+            </div>
+        </div>

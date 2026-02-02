@@ -508,7 +508,8 @@ class TradeManager:
             except Exception as e:
                 logger.error(f"Position monitor error: {e}", exc_info=True)
             
-            await asyncio.sleep(2)  # Monitor every 2 seconds for real-time updates
+            # Monitor at configured interval for real-time updates
+            await asyncio.sleep(config.trading.position_monitoring_interval)
     
     async def _check_waiting_trades(self):
         """Check if waiting trades should be executed"""

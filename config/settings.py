@@ -314,6 +314,14 @@ class TradingConfig:
         return os.getenv("EXECUTE_IMMEDIATELY", "true").lower() == "true"
     
     @property
+    def position_monitoring_interval(self) -> float:
+        """Interval in seconds to check for TP/SL hits"""
+        fs = get_firebase_settings()
+        if fs and fs._initialized:
+            return fs.get("trading", "position_monitoring_interval", 0.1)
+        return float(os.getenv("POSITION_MONITORING_INTERVAL", "0.1"))
+    
+    @property
     def max_slippage(self) -> int:
         fs = get_firebase_settings()
         if fs and fs._initialized:

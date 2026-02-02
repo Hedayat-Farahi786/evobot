@@ -1,32 +1,28 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.templating import Jinja2Templates
 import os
 
 router = APIRouter(tags=["views"])
 
+# Setup template engine
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+templates = Jinja2Templates(directory=os.path.join(base_dir, "templates"))
+
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     """Main dashboard page"""
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    dashboard_path = os.path.join(base_dir, "templates", "dashboard.html")
-    with open(dashboard_path, 'r', encoding='utf-8') as f:
-        return f.read()
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     """Login page"""
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    login_path = os.path.join(base_dir, "templates", "login.html")
-    with open(login_path, 'r', encoding='utf-8') as f:
-        return f.read()
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @router.get("/test-realtime", response_class=HTMLResponse)
 async def test_realtime(request: Request):
     """Real-time sync test page"""
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    test_path = os.path.join(base_dir, "templates", "test_realtime.html")
-    with open(test_path, 'r', encoding='utf-8') as f:
-        return f.read()
+    return templates.TemplateResponse("test_realtime.html", {"request": request})
 
 @router.get("/assets/{folder}/{filename}")
 async def serve_asset(folder: str, filename: str):

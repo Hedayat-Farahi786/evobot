@@ -82,9 +82,10 @@ class SignalMessageStorage:
     
     def get_channel_analytics(self, channel_id: str) -> Dict:
         """Get analytics for a specific channel"""
-        channel_signals = [m for m in self.messages if m.channel_id == channel_id and m.executed]
+        all_channel_signals = [m for m in self.messages if m.channel_id == channel_id]
+        channel_signals = [m for m in all_channel_signals if m.executed]
         
-        if not channel_signals:
+        if not all_channel_signals:
             return {
                 "total_signals": 0,
                 "executed_signals": 0,
@@ -93,8 +94,8 @@ class SignalMessageStorage:
                 "avg_profit": 0
             }
         
-        closed_signals = [s for s in channel_signals if s.status in ['tp3_hit', 'sl_hit', 'closed']]
-        wins = [s for s in closed_signals if s.win]
+        closed_signals = [s for s in channel_signals if s.status in ['tp3_hit', 'tp2_hit', 'tp1_hit', 'sl_hit', 'closed']]
+        wins = [s for s in closed_signals if s.win or (s.total_profit and s.total_profit > 0)]
         
         tp1_hits = sum(1 for s in channel_signals if s.tp1_hit)
         tp2_hits = sum(1 for s in channel_signals if s.tp2_hit)
@@ -104,7 +105,7 @@ class SignalMessageStorage:
         total_profit = sum(s.total_profit for s in closed_signals if s.total_profit)
         
         return {
-            "total_signals": len(channel_signals),
+            "total_signals": len(all_channel_signals),
             "executed_signals": len(channel_signals),
             "closed_signals": len(closed_signals),
             "win_rate": (len(wins) / len(closed_signals) * 100) if closed_signals else 0,

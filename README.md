@@ -368,6 +368,10 @@ python start_dashboard.py
 python main.py
 ```
 
+### Windows Shortcut
+Simply double-click `start_bot.bat` to launch the environment and dashboard automatically.
+
+
 ### Using the Dashboard
 
 1. Open http://localhost:8080 in your browser

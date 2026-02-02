@@ -202,7 +202,7 @@
             <div class="header-actions">
                 <div class="user-info">
                     <i data-lucide="user" style="width: 18px; height: 18px;"></i>
-                    <span>{{ user.username }}</span>
+                    <span>[[ user.username ]]</span>
                 </div>
                 <button class="btn btn-outline" @click="goToDashboard">
                     <i data-lucide="layout-dashboard" style="width: 16px; height: 16px;"></i>
@@ -219,27 +219,27 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total Users</div>
-                    <div class="stat-value">{{ users.length }}</div>
+                    <div class="stat-value">[[ users.length ]]</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Active Users</div>
-                    <div class="stat-value">{{ users.filter(u => u.is_active).length }}</div>
+                    <div class="stat-value">[[ users.filter(u => u.is_active).length ]]</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Admins</div>
-                    <div class="stat-value">{{ users.filter(u => u.role === 'admin').length }}</div>
+                    <div class="stat-value">[[ users.filter(u => u.role === 'admin').length ]]</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Active Sessions</div>
-                    <div class="stat-value">{{ securityStats.active_sessions || 0 }}</div>
+                    <div class="stat-value">[[ securityStats.active_sessions || 0 ]]</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Locked Accounts</div>
-                    <div class="stat-value">{{ securityStats.locked_accounts || 0 }}</div>
+                    <div class="stat-value">[[ securityStats.locked_accounts || 0 ]]</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Failed Logins (24h)</div>
-                    <div class="stat-value">{{ securityStats.failed_logins_24h || 0 }}</div>
+                    <div class="stat-value">[[ securityStats.failed_logins_24h || 0 ]]</div>
                 </div>
             </div>
 
@@ -266,11 +266,11 @@
                     </thead>
                     <tbody>
                         <tr v-for="u in users" :key="u.id">
-                            <td><strong>{{ u.username }}</strong></td>
-                            <td>{{ u.email }}</td>
+                            <td><strong>[[ u.username ]]</strong></td>
+                            <td>[[ u.email ]]</td>
                             <td>
                                 <span :class="'badge badge-' + u.role" style="cursor: pointer;" @click="showRoleModal(u)">
-                                    {{ u.role }}
+                                    [[ u.role ]]
                                 </span>
                             </td>
                             <td>
@@ -278,15 +278,15 @@
                                     🔒 Locked
                                 </span>
                                 <span v-else :class="'badge badge-' + (u.is_active ? 'active' : 'inactive')">
-                                    {{ u.is_active ? '✓ Active' : '✗ Inactive' }}
+                                    [[ u.is_active ? '✓ Active' : '✗ Inactive' ]]
                                 </span>
                             </td>
-                            <td>{{ formatDate(u.created_at) }}</td>
-                            <td>{{ u.last_login ? formatDate(u.last_login) : 'Never' }}</td>
-                            <td>{{ u.failed_login_attempts || 0 }}</td>
+                            <td>[[ formatDate(u.created_at) ]]</td>
+                            <td>[[ u.last_login ? formatDate(u.last_login) : 'Never' ]]</td>
+                            <td>[[ u.failed_login_attempts || 0 ]]</td>
                             <td style="font-size: 0.75rem;">
                                 <button class="btn btn-outline" style="padding: 0.375rem 0.5rem; margin-right: 0.25rem; font-size: 0.7rem;" @click="toggleUser(u.username)">
-                                    {{ u.is_active ? 'Disable' : 'Enable' }}
+                                    [[ u.is_active ? 'Disable' : 'Enable' ]]
                                 </button>
                                 <button v-if="u.locked_until" class="btn btn-success" style="padding: 0.375rem 0.5rem; margin-right: 0.25rem; font-size: 0.7rem;" @click="unlockUser(u.username)">
                                     Unlock
@@ -321,16 +321,16 @@
                     </thead>
                     <tbody>
                         <tr v-for="(log, i) in filteredAuditLogs" :key="i">
-                            <td>{{ formatDate(log.timestamp) }}</td>
-                            <td><code style="background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 4px;">{{ log.event_type }}</code></td>
-                            <td>{{ log.username || '—' }}</td>
-                            <td><code style="font-size: 0.8rem;">{{ log.ip_address || '—' }}</code></td>
+                            <td>[[ formatDate(log.timestamp) ]]</td>
+                            <td><code style="background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 4px;">[[ log.event_type ]]</code></td>
+                            <td>[[ log.username || '—' ]]</td>
+                            <td><code style="font-size: 0.8rem;">[[ log.ip_address || '—' ]]</code></td>
                             <td>
                                 <span v-if="log.severity === 'critical'" class="badge" style="background: #fee2e2; color: #991b1b;">CRITICAL</span>
                                 <span v-else-if="log.severity === 'warning'" class="badge" style="background: #fef3c7; color: #92400e;">WARNING</span>
                                 <span v-else class="badge" style="background: #d1fae5; color: #065f46;">INFO</span>
                             </td>
-                            <td><small>{{ JSON.stringify(log.details) }}</small></td>
+                            <td><small>[[ JSON.stringify(log.details) ]]</small></td>
                         </tr>
                     </tbody>
                 </table>
@@ -341,7 +341,7 @@
             <div class="modal-content">
                 <h2 style="margin-bottom: 1.5rem;">Create New User</h2>
                 <div v-if="modalError" style="background: #fee2e2; color: #991b1b; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.875rem;">
-                    {{ modalError }}
+                    [[ modalError ]]
                 </div>
                 <form @submit.prevent="createUser">
                     <div class="form-group">
@@ -375,9 +375,9 @@
         <div v-if="showResetPasswordModal" class="modal" @click.self="showResetPasswordModal = null">
             <div class="modal-content">
                 <h2 style="margin-bottom: 1.5rem;">Reset Password</h2>
-                <p style="margin-bottom: 1.5rem; color: #64748b;">Username: <strong>{{ showResetPasswordModal?.username }}</strong></p>
+                <p style="margin-bottom: 1.5rem; color: #64748b;">Username: <strong>[[ showResetPasswordModal?.username ]]</strong></p>
                 <div v-if="modalError" style="background: #fee2e2; color: #991b1b; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.875rem;">
-                    {{ modalError }}
+                    [[ modalError ]]
                 </div>
                 <form @submit.prevent="resetPassword">
                     <div class="form-group">
@@ -395,7 +395,7 @@
         <div v-if="showRoleModal" class="modal" @click.self="showRoleModal = null">
             <div class="modal-content">
                 <h2 style="margin-bottom: 1.5rem;">Change Role</h2>
-                <p style="margin-bottom: 1.5rem; color: #64748b;">Username: <strong>{{ showRoleModal?.username }}</strong></p>
+                <p style="margin-bottom: 1.5rem; color: #64748b;">Username: <strong>[[ showRoleModal?.username ]]</strong></p>
                 <div class="form-group">
                     <label>Role</label>
                     <select v-model="selectedRole">

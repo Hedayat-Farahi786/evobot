@@ -1,10 +1,19 @@
-        const { createApp } = Vue;
-        
-        createApp({
-            data() {
-                return {
-                    ws: null,
-                    isDarkTheme: false,
+import { ConnectionManager } from './modules/websocket.js';
+import { api } from './modules/api.js';
+import * as formatters from './modules/formatters.js';
+import { animateValue } from './modules/ui.js';
+
+const { createApp } = Vue;
+
+createApp({
+    delimiters: ['[[', ']]'],
+    data() {
+        return {
+            connectionManager: null,
+            ws: null,
+            valueCache: new Map(),
+            animatingElements: new Set(),
+            isDarkTheme: false,
                     showConfirmModal: false,
                     showLogoutModal: false,
                     showMT5LoginModal: false,
@@ -187,15 +196,7 @@
                     telegramChannels: [],
                     loadingChannels: false,
                     channelMetadata: {},
-                    // Dummy signals data
-                    dummySignals: [
-                        { id: 1, channel: 'Premium Signals', symbol: 'XAUUSD', direction: 'BUY', entry: '2050.00', sl: '2045.00', tp1: '2055.00', tp2: '2060.00', tp3: '2065.00', status: 'TP3 Hit', profit: 150.50, time: '2 hours ago' },
-                        { id: 2, channel: 'Forex Masters', symbol: 'EURUSD', direction: 'SELL', entry: '1.0850', sl: '1.0880', tp1: '1.0820', tp2: '1.0800', tp3: '1.0780', status: 'TP2 Hit', profit: 85.30, time: '4 hours ago' },
-                        { id: 3, channel: 'Gold Traders', symbol: 'XAUUSD', direction: 'SELL', entry: '2048.50', sl: '2053.00', tp1: '2043.00', tp2: '2038.00', tp3: '2033.00', status: 'Active', profit: null, time: '1 hour ago' },
-                        { id: 4, channel: 'Premium Signals', symbol: 'GBPUSD', direction: 'BUY', entry: '1.2650', sl: '1.2620', tp1: '1.2680', tp2: '1.2710', tp3: '1.2740', status: 'TP1 Hit', profit: 45.20, time: '3 hours ago' },
-                        { id: 5, channel: 'Forex Masters', symbol: 'USDJPY', direction: 'BUY', entry: '148.50', sl: '148.00', tp1: '149.00', tp2: '149.50', tp3: '150.00', status: 'SL Hit', profit: -50.00, time: '5 hours ago' },
-                        { id: 6, channel: 'Gold Traders', symbol: 'XAUUSD', direction: 'BUY', entry: '2052.00', sl: '2047.00', tp1: '2057.00', tp2: '2062.00', tp3: '2067.00', status: 'Active', profit: null, time: '30 mins ago' }
-                    ],
+                    // Dummy signals data removed
                     selectedChannel: '',
                     // Signal messages data
                     signalMessages: [],
@@ -210,7 +211,8 @@
                     expandedSignals: {},
                     showChannelDropdown: false,
                     showDateDropdown: false,
-                    showSignalChart: false
+                    showSignalChart: false,
+                    chartInstance: null
                 };
             },
             watch: {
@@ -226,7 +228,12 @@
                 'account.free_margin'() { this.triggerNumberAnimation(); },
                 'account.profit'() { this.triggerNumberAnimation(); },
                 'stats.win_rate'() { this.triggerNumberAnimation(); },
-                'mt5Positions.length'() { this.triggerNumberAnimation(); }
+                'mt5Positions.length'() { this.triggerNumberAnimation(); },
+                'showSignalChart'(newValue) {
+                    if (newValue) {
+                        this.$nextTick(() => this.renderSignalChart());
+                    }
+                }
             },
             computed: {
                 currencySymbol() {
@@ -243,29 +250,6 @@
                     return this.mt5Positions.reduce((sum, pos) => sum + (pos.profit || 0), 0);
                 },
                 
-                filteredSignals() {
-                    if (!this.selectedChannel) return this.dummySignals;
-                    return this.dummySignals.filter(s => s.channel === this.selectedChannel);
-                },
-                
-                channelStats() {
-                    const signals = this.filteredSignals;
-                    const closed = signals.filter(s => s.status !== 'Active');
-                    const wins = closed.filter(s => s.profit && s.profit > 0);
-                    const tp3Hits = signals.filter(s => s.status === 'TP3 Hit');
-                    const totalProfit = closed.reduce((sum, s) => sum + (s.profit || 0), 0);
-                    
-                    return {
-                        total: signals.length,
-                        closed: closed.length,
-                        wins: wins.length,
-                        winRate: closed.length > 0 ? Math.round((wins.length / closed.length) * 100) : 0,
-                        profit: totalProfit,
-                        avgProfit: closed.length > 0 ? totalProfit / closed.length : 0,
-                        tp3Count: tp3Hits.length,
-                        tp3Rate: signals.length > 0 ? Math.round((tp3Hits.length / signals.length) * 100) : 0
-                    };
-                },
                 hasRequiredSettings() {
                     // Check if minimum required settings are configured
                     const hasTelegram = this.settings.telegram.api_id && 
@@ -310,9 +294,13 @@
                         'logs': 'System Logs'
                     };
                     return titles[this.activeNavItem] || 'Dashboard';
+                },
+                signals() {
+                    return this.filteredSignalMessages || [];
                 }
             },
             methods: {
+                ...formatters,
                 // Theme toggle method
                 toggleTheme() {
                     this.isDarkTheme = !this.isDarkTheme;
@@ -348,24 +336,35 @@
                         }
                     });
                 },
+                formatNumberForAnim(num, decimals) {
+                    return num.toLocaleString('en-US', {
+                        minimumFractionDigits: decimals,
+                        maximumFractionDigits: decimals
+                    });
+                },
+
+                animateValue(el, start, end, duration = 800) {
+                    return animateValue(el, start, end, duration);
+                },
+
                 triggerNumberAnimation() {
                     this.$nextTick(() => {
                         document.querySelectorAll('.animated-number').forEach(el => {
-                            const newValue = parseFloat(el.getAttribute('data-value'));
-                            const oldValue = parseFloat(el.getAttribute('data-old-value') || newValue);
+                            const text = el.textContent.replace(/,/g, '');
+                            const numStr = text.replace(/[^0-9.-]/g, '');
+                            const newVal = parseFloat(numStr);
                             
-                            if (newValue !== oldValue && !isNaN(newValue) && !isNaN(oldValue)) {
-                                el.classList.remove('number-increase', 'number-decrease');
-                                void el.offsetWidth;
-                                
-                                if (newValue > oldValue) {
-                                    el.classList.add('number-increase');
-                                } else if (newValue < oldValue) {
-                                    el.classList.add('number-decrease');
-                                }
-                                
-                                el.setAttribute('data-old-value', newValue);
+                            if (isNaN(newVal)) return;
+                            
+                            const oldVal = this.valueCache.get(el);
+                            
+                            // Only animate if difference is significant
+                            if (oldVal !== undefined && Math.abs(oldVal - newVal) > 0.001) {
+                                // Animate
+                                this.animateValue(el, oldVal, newVal);
                             }
+                            
+                            this.valueCache.set(el, newVal);
                         });
                     });
                 },
@@ -376,13 +375,6 @@
                     this._iconTimeout = setTimeout(() => {
                         this.initIcons();
                     }, 100);
-                },
-                formatNumber(value) {
-                    if (value === null || value === undefined) return '0.00';
-                    return Number(value).toLocaleString('en-US', { 
-                        minimumFractionDigits: 2, 
-                        maximumFractionDigits: 2 
-                    });
                 },
                 getInitials(name) {
                     if (!name) return '?';
@@ -443,20 +435,6 @@
                     }
                     return {};
                 },
-                getChannelDisplayId(channelId) {
-                    const info = this.getChannelInfo(channelId);
-                    const id = info?.username || info?.id || channelId;
-                    if (String(id).startsWith('@')) return id;
-                    if (String(id).startsWith('-100')) return '@' + String(id).replace('-100', '');
-                    if (String(id).startsWith('-')) return id;
-                    return '@' + id;
-                },
-                formatNumberCompact(num) {
-                    if (!num || isNaN(num)) return '0';
-                    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-                    if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-                    return num.toString();
-                },
                 isChannelVerified(channelId) {
                     const info = this.getChannelInfo(channelId);
                     return info?.verified === true;
@@ -479,30 +457,6 @@
                     } catch (e) {
                         console.error('Error fetching telegram user:', e);
                     }
-                },
-                formatPrice(value, symbol) {
-                    if (!value) return '-';
-                    const digits = symbol?.includes('JPY') ? 3 : (symbol?.includes('XAU') ? 2 : 5);
-                    return Number(value).toFixed(digits);
-                },
-                formatUptime(seconds) {
-                    if (!seconds) return '0s';
-                    const hours = Math.floor(seconds / 3600);
-                    const minutes = Math.floor((seconds % 3600) / 60);
-                    const secs = Math.floor(seconds % 60);
-                    if (hours > 0) return `${hours}h ${minutes}m`;
-                    if (minutes > 0) return `${minutes}m ${secs}s`;
-                    return `${secs}s`;
-                },
-                formatSignalTime(timestamp) {
-                    if (!timestamp) return 'Unknown time';
-                    const date = new Date(timestamp);
-                    return date.toLocaleString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
                 },
                 // Confirmation modal methods
                 confirmStart() {
@@ -1160,172 +1114,89 @@
                     }
                 },
                 connectWebSocket() {
-                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    const wsUrl = `${protocol}//${window.location.host}/ws`;
-                    console.log('Connecting to WebSocket:', wsUrl);
-                    this.ws = new WebSocket(wsUrl);
-                    
-                    this.ws.onopen = () => {
-                        console.log('WebSocket connected');
-                    };
-                    
-                    this.ws.onmessage = (event) => {
-                        const data = JSON.parse(event.data);
-                        
-                        // Handle real-time account updates
-                        if (data.type === 'account_update') {
-                            const acc = data.data;
-                            this.account = {
-                                balance: acc.balance || 0,
-                                equity: acc.equity || 0,
-                                margin: acc.margin || 0,
-                                free_margin: acc.free_margin || 0,
-                                profit: acc.profit || 0,
-                                currency: acc.currency || 'USD',
-                                leverage: acc.leverage || 0,
-                                server: acc.server || '',
-                                login: acc.login || 0
-                            };
-                        }
-                        // Handle real-time positions updates
-                        else if (data.type === 'positions_update') {
-                            const newPositions = data.data.positions || [];
-                            // Force complete array replacement to trigger Vue reactivity
-                            this.mt5Positions = newPositions.map(pos => ({
-                                id: pos.id || pos.position_ticket,
-                                position_ticket: pos.position_ticket || pos.id,
-                                symbol: pos.symbol,
-                                direction: pos.direction,
-                                lot_size: pos.lot_size || pos.volume,
-                                entry_price: pos.entry_price || pos.open_price,
-                                current_price: pos.current_price || pos.price_current || 0,
-                                stop_loss: pos.stop_loss || pos.sl,
-                                take_profit: pos.take_profit || pos.tp,
-                                take_profit_1: pos.take_profit_1 || pos.tp1,
-                                profit: pos.profit || 0,
-                                swap: pos.swap || 0,
-                                commission: pos.commission || 0,
-                                time: pos.time
-                            }));
-                        }
-                        // Handle real-time stats updates
-                        else if (data.type === 'stats_update') {
-                            const statsData = data.data;
-                            this.stats = {
-                                total_trades: statsData.total_trades || 0,
-                                closed_trades: statsData.closed_trades || 0,
-                                winning_trades: statsData.winning_trades || 0,
-                                losing_trades: statsData.losing_trades || 0,
-                                win_rate: statsData.win_rate || 0,
-                                total_profit: statsData.total_profit || 0,
-                                open_trades: statsData.open_trades || 0,
-                                last_updated: statsData.last_updated || new Date().toISOString()
-                            };
-                        }
-                        // Handle startup progress updates
-                        else if (data.type === 'startup_progress') {
-                            const { step, status, message, connected } = data.data;
-                            
-                            // Update connectionSteps for UI progress indicators
-                            if (step === 'mt5') {
-                                this.connectionSteps.mt5 = status;
-                                // Update actual status based on connected flag
-                                if (status === 'success') {
-                                    this.status.mt5_connected = true;
-                                } else if (status === 'failed' || status === 'error' || status === 'warning') {
-                                    this.status.mt5_connected = connected === true;
+                    const self = this;
+                    this.connectionManager = new ConnectionManager({
+                        handlers: {
+                            'account_update': (data) => {
+                                self.account = {
+                                    balance: data.balance || 0,
+                                    equity: data.equity || 0,
+                                    margin: data.margin || 0,
+                                    free_margin: data.free_margin || 0,
+                                    profit: data.profit || 0,
+                                    currency: data.currency || 'USD',
+                                    leverage: data.leverage || 0,
+                                    server: data.server || '',
+                                    login: data.login || 0
+                                };
+                            },
+                            'positions_update': (data) => {
+                                const newPositions = data.positions || [];
+                                self.mt5Positions = newPositions.map(pos => ({
+                                    id: pos.id || pos.position_ticket,
+                                    position_ticket: pos.position_ticket || pos.id,
+                                    symbol: pos.symbol,
+                                    direction: pos.direction,
+                                    lot_size: pos.lot_size || pos.volume,
+                                    entry_price: pos.entry_price || pos.open_price,
+                                    current_price: pos.current_price || pos.price_current || 0,
+                                    stop_loss: pos.stop_loss || pos.sl,
+                                    take_profit: pos.take_profit || pos.tp,
+                                    take_profit_1: pos.take_profit_1 || pos.tp1,
+                                    profit: pos.profit || 0,
+                                    swap: pos.swap || 0,
+                                    commission: pos.commission || 0,
+                                    time: pos.time
+                                }));
+                            },
+                            'stats_update': (data) => {
+                                self.stats = {
+                                    total_trades: data.total_trades || 0,
+                                    closed_trades: data.closed_trades || 0,
+                                    winning_trades: data.winning_trades || 0,
+                                    losing_trades: data.losing_trades || 0,
+                                    win_rate: data.win_rate || 0,
+                                    total_profit: data.total_profit || 0,
+                                    open_trades: data.open_trades || 0,
+                                    last_updated: data.last_updated || new Date().toISOString()
+                                };
+                            },
+                            'startup_progress': (data) => {
+                                const { step, status, message, connected } = data;
+                                if (step === 'mt5') {
+                                    self.connectionSteps.mt5 = status;
+                                    if (status === 'success') self.status.mt5_connected = true;
+                                    else if (['failed', 'error', 'warning'].includes(status)) self.status.mt5_connected = connected === true;
+                                } else if (step === 'telegram') {
+                                    self.connectionSteps.telegram = status;
+                                    if (status === 'success') self.status.telegram_connected = true;
+                                    else if (['failed', 'error', 'warning'].includes(status)) self.status.telegram_connected = connected === true;
+                                } else if (step === 'account') {
+                                    self.connectionSteps.account = status;
                                 }
-                            } else if (step === 'telegram') {
-                                this.connectionSteps.telegram = status;
-                                if (status === 'success') {
-                                    this.status.telegram_connected = true;
-                                } else if (status === 'failed' || status === 'error' || status === 'warning') {
-                                    this.status.telegram_connected = connected === true;
+                                if (step === 'error') {
+                                    self.connectionSteps.mt5 = 'error';
+                                    self.notify(message || 'Startup failed', 'error');
                                 }
-                            } else if (step === 'account') {
-                                this.connectionSteps.account = status;
-                            }
-                            
-                            if (step === 'error') {
-                                this.connectionSteps.mt5 = 'error';
-                                this.notify(message || 'Startup failed', 'error');
-                            }
-                        } else if (data.type === 'bot_started') {
-                            // Don't override - use actual connection states from data
-                            if (data.data.mt5_connected !== undefined) {
-                                this.status.mt5_connected = data.data.mt5_connected;
-                                this.connectionSteps.mt5 = data.data.mt5_connected ? 'success' : 'failed';
-                            }
-                            if (data.data.telegram_connected !== undefined) {
-                                this.status.telegram_connected = data.data.telegram_connected;
-                                this.connectionSteps.telegram = data.data.telegram_connected ? 'success' : 'failed';
-                            }
-                            this.connectionSteps.account = 'success';
-                            this.status.bot_running = true;
-                            this.addActivity('Bot Started', 'success', 'play');
-                            this.refreshData();
-                            this.refreshPositions();
-                        } else if (data.type === 'reconnect_progress') {
-                            const { service, status, message } = data.data;
-                            if (service === 'mt5') {
-                                if (status === 'connecting') {
-                                    this.connectionSteps.mt5 = 'loading';
-                                } else if (status === 'success') {
-                                    this.status.mt5_connected = true;
-                                    this.connectionSteps.mt5 = 'success';
-                                } else {
-                                    this.connectionSteps.mt5 = 'failed';
+                            },
+                            'bot_started': (data) => {
+                                if (data.mt5_connected !== undefined) {
+                                    self.status.mt5_connected = data.mt5_connected;
+                                    self.connectionSteps.mt5 = data.mt5_connected ? 'success' : 'failed';
                                 }
-                            } else if (service === 'telegram') {
-                                if (status === 'connecting') {
-                                    this.connectionSteps.telegram = 'loading';
-                                } else if (status === 'success') {
-                                    this.status.telegram_connected = true;
-                                    this.connectionSteps.telegram = 'success';
-                                } else {
-                                    this.connectionSteps.telegram = 'failed';
+                                if (data.telegram_connected !== undefined) {
+                                    self.status.telegram_connected = data.telegram_connected;
+                                    self.connectionSteps.telegram = data.telegram_connected ? 'success' : 'failed';
                                 }
+                                self.connectionSteps.account = 'success';
+                                self.status.bot_running = true;
+                                self.addActivity('Bot Started', 'success', 'play');
+                                self.refreshData();
+                                self.refreshPositions();
                             }
-                        } else if (data.type === 'signal_received') {
-                            this.addActivity(`Signal: ${data.data.symbol} ${data.data.direction}`, 'success', 'zap');
-                            this.notify(`Signal: ${data.data.symbol} ${data.data.direction}`, 'info');
-                        } else if (data.type === 'trade_created') {
-                            this.addActivity(`Trade: ${data.data.trade?.symbol}`, 'success', 'trending-up');
-                            this.notify(`Trade opened: ${data.data.trade?.symbol}`, 'success');
-                        } else if (data.type === 'signal_rejected') {
-                            this.addActivity(`Rejected: ${data.data.reason}`, 'danger', 'x-circle');
-                        } else if (data.type === 'startup_failed') {
-                            // Handle startup failure - update UI to show failed state
-                            this.status.bot_running = false;
-                            this.startingPhase = null;
-                            
-                            if (data.data.mt5_connected !== undefined) {
-                                this.status.mt5_connected = data.data.mt5_connected;
-                                this.connectionSteps.mt5 = data.data.mt5_connected ? 'success' : 'failed';
-                            }
-                            if (data.data.telegram_connected !== undefined) {
-                                this.status.telegram_connected = data.data.telegram_connected;
-                                this.connectionSteps.telegram = data.data.telegram_connected ? 'success' : 'failed';
-                            }
-                            if (data.data.account_ok !== undefined) {
-                                this.connectionSteps.account = data.data.account_ok ? 'success' : 'failed';
-                            }
-                            
-                            // Show error message
-                            const msg = data.data.message || 'Startup failed';
-                            this.notify(`❌ ${msg}`, 'error');
-                            this.addActivity('Startup Failed', 'danger', 'x-circle');
                         }
-                    };
-                    
-                    this.ws.onclose = () => {
-                        console.log('WebSocket disconnected, reconnecting...');
-                        setTimeout(() => this.connectWebSocket(), 3000);
-                    };
-                    
-                    this.ws.onerror = (error) => {
-                        console.error('WebSocket error:', error);
-                    };
+                    });
+                    this.connectionManager.connect();
                 },
                 addActivity(title, type, icon) {
                     this.activities.unshift({
@@ -1550,6 +1421,11 @@
                             if (this.signalChannelFilter) {
                                 await this.loadChannelAnalytics(this.signalChannelFilter);
                             }
+                            
+                            // Render chart if visible
+                            if (this.showSignalChart) {
+                                this.$nextTick(() => this.renderSignalChart());
+                            }
                         }
                     } catch (error) {
                         console.error('Failed to load signal messages:', error);
@@ -1690,6 +1566,83 @@
                 
                 toggleSignalMessage(signalId) {
                     this.expandedSignals[signalId] = !this.expandedSignals[signalId];
+                },
+                
+                renderSignalChart() {
+                    if (!this.showSignalChart) return;
+                    
+                    const ctx = document.getElementById('signalChart');
+                    if (!ctx) return;
+                    
+                    // Destroy existing chart
+                    if (this.chartInstance) {
+                        this.chartInstance.destroy();
+                    }
+                    
+                    // Prepare data
+                    const signals = this.filteredSignalMessages
+                        .filter(s => s.executed && s.status !== 'active')
+                        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                        
+                    if (signals.length === 0) return;
+                    
+                    // Group by date
+                    const dailyProfits = {};
+                    signals.forEach(s => {
+                        const date = new Date(s.timestamp).toLocaleDateString();
+                        if (!dailyProfits[date]) dailyProfits[date] = 0;
+                        dailyProfits[date] += (s.total_profit || 0);
+                    });
+                    
+                    const labels = Object.keys(dailyProfits);
+                    const data = Object.values(dailyProfits);
+                    const colors = data.map(v => v >= 0 ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)');
+                    const borders = data.map(v => v >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)');
+                    
+                    this.chartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Daily Profit',
+                                data: data,
+                                backgroundColor: colors,
+                                borderColor: borders,
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                title: { 
+                                    display: true, 
+                                    text: 'Daily Profit (Realized)',
+                                    color: this.isDarkTheme ? '#e2e8f0' : '#1e293b'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    grid: {
+                                        color: this.isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                                    },
+                                    ticks: {
+                                        color: this.isDarkTheme ? '#94a3b8' : '#64748b',
+                                        callback: (value) => '$' + value
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    },
+                                    ticks: {
+                                        color: this.isDarkTheme ? '#94a3b8' : '#64748b'
+                                    }
+                                }
+                            }
+                        }
+                    });
                 },
                 
                 async loadChannelAnalytics(channelId) {

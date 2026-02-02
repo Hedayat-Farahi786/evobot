@@ -347,14 +347,14 @@
                             <i v-else class="fab fa-telegram"></i>
                         </div>
                         <div class="user-info">
-                            <h4>{{ telegramUser.first_name }} {{ telegramUser.last_name }}</h4>
-                            <p>@{{ telegramUser.username || telegramUser.phone }}</p>
+                            <h4>[[ telegramUser.first_name ]] [[ telegramUser.last_name ]]</h4>
+                            <p>@[[ telegramUser.username || telegramUser.phone ]]</p>
                         </div>
                     </div>
                     <button @click="telegramLogin" class="btn" :disabled="loading">
                         <span v-if="loading" class="spinner"></span>
                         <img v-else src="/assets/logos/telegram.jpg" alt="Telegram" class="telegram-logo">
-                        <span>{{ loading ? 'Signing in...' : 'Continue with Telegram' }}</span>
+                        <span>[[ loading ? 'Signing in...' : 'Continue with Telegram' ]]</span>
                     </button>
                     <!-- Option to reset/change account -->
                     <div style="text-align: center; margin-top: 15px;">
@@ -374,7 +374,7 @@
                         </div>
                         <button @click="requestSetupCode" class="btn primary" :disabled="loading || !setupPhone">
                             <span v-if="loading" class="spinner"></span>
-                            <span>{{ loading ? 'Sending Code...' : 'Send Verification Code' }}</span>
+                            <span>[[ loading ? 'Sending Code...' : 'Send Verification Code' ]]</span>
                         </button>
                     </div>
 
@@ -387,7 +387,7 @@
                         </div>
                         <button @click="verifySetupCode" class="btn primary" :disabled="loading || !setupCode">
                             <span v-if="loading" class="spinner"></span>
-                            <span>{{ loading ? 'Verifying...' : 'Verify Code' }}</span>
+                            <span>[[ loading ? 'Verifying...' : 'Verify Code' ]]</span>
                         </button>
                         <div style="display: flex; gap: 10px; margin-top: 10px;">
                             <button @click="setupStep = 1; error = ''" class="btn text-only" :disabled="loading" style="flex: 1;">
@@ -407,7 +407,7 @@
                         </div>
                         <button @click="verifySetupPassword" class="btn primary" :disabled="loading || !setupPassword">
                             <span v-if="loading" class="spinner"></span>
-                            <span>{{ loading ? 'Verifying...' : 'Unlock' }}</span>
+                            <span>[[ loading ? 'Verifying...' : 'Unlock' ]]</span>
                         </button>
                     </div>
 
@@ -416,11 +416,11 @@
 
             <div v-if="error" class="alert error">
                 <i class="fas fa-exclamation-circle"></i>
-                <span>{{ error }}</span>
+                <span>[[ error ]]</span>
             </div>
             <div v-if="success" class="alert success">
                 <i class="fas fa-check-circle"></i>
-                <span>{{ success }}</span>
+                <span>[[ success ]]</span>
             </div>
 
             <div class="footer">
@@ -432,6 +432,7 @@
     <script>
         const { createApp } = Vue;
         createApp({
+            delimiters: ['[[', ']]'],
             data() {
                 return {
                     error: '',

@@ -1,0 +1,100 @@
+<!-- Trade History Page View -->
+                <div class="page-view" :class="{ active: activeNavItem === 'history' }">
+                    <div class="page-header">
+                        <div>
+                            <h1>Trade History</h1>
+                            <p>View all past trades and their performance</p>
+                        </div>
+                        <button class="btn" @click="refreshTrades" v-if="status.bot_running">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                            Refresh
+                        </button>
+                    </div>
+                    <div class="settings-container" v-if="!status.bot_running">
+                        <div class="bot-stopped-placeholder">
+                            <div class="bot-stopped-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12 6 12 12 16 14"/>
+                                </svg>
+                            </div>
+                            <div class="bot-stopped-title">No Trade History</div>
+                            <div class="bot-stopped-subtitle">The bot needs to be running to record trade history. Start the bot to view detailed performance metrics, entry/exit prices, and profit/loss for each closed position.</div>
+                            <div class="bot-stopped-actions">
+                                <button v-if="!account.login" class="btn-start" @click="showMT5LoginModal = true" style="background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border);">
+                                    <img src="/assets/logos/mt5.webp" alt="MT5" style="width: 18px; height: 18px; margin-right: 8px; border-radius: 3px;" />
+                                    Connect MT5
+                                </button>
+                                <button v-else class="btn-start" @click="startBot" :disabled="loading.start || (!status.telegram_connected && !telegramSessionValid)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                                    Start Bot
+                                </button>
+                                <div class="bot-stopped-status" :class="{ ready: account.login && (telegramSessionValid || status.telegram_connected) }">
+                                    <span class="status-dot"></span>
+                                    <span v-if="!account.login">MT5 account required</span>
+                                    <span v-else-if="(telegramSessionValid || status.telegram_connected)">Ready to start</span>
+                                    <span v-else>Configure Telegram first</span>
+                                </div>
+                            </div>
+                            <div class="bot-stopped-features">
+                                <div class="bot-stopped-feature">
+                                    <div class="bot-stopped-feature-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                                    </div>
+                                    <span>Performance Metrics</span>
+                                </div>
+                                <div class="bot-stopped-feature">
+                                    <div class="bot-stopped-feature-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                    </div>
+                                    <span>Profit Analysis</span>
+                                </div>
+                                <div class="bot-stopped-feature">
+                                    <div class="bot-stopped-feature-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                                    </div>
+                                    <span>Trade Timeline</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-container" v-else>
+                        <div class="settings-card" style="max-width: 100%;">
+                            <div class="settings-card-body" style="padding: 0;">
+                                <table v-if="activeTrades.length > 0" style="width: 100%;">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Symbol</th>
+                                            <th>Type</th>
+                                            <th>Entry</th>
+                                            <th>Exit</th>
+                                            <th>P/L</th>
+                                            <th>Status</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="trade in activeTrades" :key="trade.id">
+                                            <td class="font-mono">[[ trade.id ]]</td>
+                                            <td class="symbol-cell">[[ trade.symbol ]]</td>
+                                            <td :class="trade.direction === 'BUY' ? 'direction-buy' : 'direction-sell'">[[ trade.direction ]]</td>
+                                            <td class="font-mono">[[ trade.entry_price ]]</td>
+                                            <td class="font-mono">[[ trade.exit_price || '-' ]]</td>
+                                            <td :class="(trade.profit || 0) >= 0 ? 'profit-positive' : 'profit-negative'">
+                                                [[ (trade.profit || 0) >= 0 ? '+' : '' ]]$[[ (trade.profit || 0).toFixed(2) ]]
+                                            </td>
+                                            <td><span class="badge" :class="trade.status">[[ trade.status ]]</span></td>
+                                            <td style="font-size: 11px; color: var(--text-muted);">[[ trade.created_at ]]</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <div class="empty-state" v-else style="padding: 60px;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    <div style="margin-top: 16px; font-size: 14px;">No trade history yet</div>
+                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Your completed trades will appear here</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>

@@ -1,0 +1,175 @@
+<!-- MT5 Login Modal -->
+        <div class="confirm-overlay" v-if="showMT5LoginModal" @click.self="closeMT5Modal">
+            <div class="channel-modal" style="max-width: 520px;">
+                <!-- Modal Header -->
+                <div class="channel-modal-header">
+                    <div class="channel-modal-header-left">
+                        <div class="channel-modal-icon">
+                            <img src="/assets/logos/mt5.webp" alt="MT5" />
+                        </div>
+                        <div class="channel-modal-title-group">
+                            <h3>MT5 Connection</h3>
+                            <p>Connect your MetaTrader 5 account</p>
+                        </div>
+                    </div>
+                    <button class="channel-modal-close" @click="closeMT5Modal" title="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+                
+                <!-- Modal Body -->
+                <div class="channel-modal-body" style="display: block; padding: 0;">
+                    <!-- Connected Account View -->
+                    <div v-if="mt5SessionValid && account.login" class="mt5-connected-view">
+                        <div class="mt5-account-card">
+                            <div class="mt5-account-header">
+                                <div class="mt5-account-avatar">
+                                    <img src="/assets/logos/mt5.webp" alt="MT5" />
+                                </div>
+                                <div class="mt5-account-info">
+                                    <div class="mt5-account-name">[[ account.name || 'MT5 Account' ]]</div>
+                                    <div class="mt5-account-company">[[ account.company || account.server ]]</div>
+                                </div>
+                                <div class="mt5-status-badge connected">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span>Connected</span>
+                                </div>
+                            </div>
+                            <div class="mt5-account-stats">
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Login</span>
+                                    <span class="mt5-stat-value">[[ account.login ]]</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Server</span>
+                                    <span class="mt5-stat-value">[[ account.server ]]</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Balance</span>
+                                    <span class="mt5-stat-value">[[ currencySymbol ]][[ formatNumber(account.balance) ]]</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Equity</span>
+                                    <span class="mt5-stat-value">[[ currencySymbol ]][[ formatNumber(account.equity) ]]</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Margin</span>
+                                    <span class="mt5-stat-value">[[ currencySymbol ]][[ formatNumber(account.margin) ]]</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Free Margin</span>
+                                    <span class="mt5-stat-value">[[ currencySymbol ]][[ formatNumber(account.free_margin) ]]</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Leverage</span>
+                                    <span class="mt5-stat-value">1:[[ account.leverage ]]</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Currency</span>
+                                    <span class="mt5-stat-value">[[ account.currency || 'USD' ]]</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Profit</span>
+                                    <span class="mt5-stat-value" :class="account.profit >= 0 ? 'profit-positive' : 'profit-negative'">[[ account.profit >= 0 ? '+' : '' ]][[ currencySymbol ]][[ formatNumber(account.profit) ]]</span>
+                                </div>
+                                <div class="mt5-stat-item">
+                                    <span class="mt5-stat-label">Margin Level</span>
+                                    <span class="mt5-stat-value">[[ account.margin > 0 ? ((account.equity / account.margin) * 100).toFixed(2) : '∞' ]]%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-danger" @click="confirmMT5Disconnect" style="width: 100%; margin-top: 16px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                            Disconnect Account
+                        </button>
+                    </div>
+                    
+                    <!-- Login Form View -->
+                    <div v-else class="mt5-login-form">
+                        <div class="mt5-form-group">
+                            <label class="mt5-form-label">Server</label>
+                            <div class="mt5-input-wrapper">
+                                <svg class="mt5-input-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+                                <input 
+                                    type="text" 
+                                    v-model="mt5Form.server" 
+                                    @input="filterMT5Servers" 
+                                    @focus="showMT5ServerDropdown" 
+                                    @blur="hideMT5Dropdown" 
+                                    placeholder="e.g., YourBroker-Demo" 
+                                    :disabled="mt5Testing" 
+                                    autocomplete="off" 
+                                    class="mt5-input"
+                                />
+                            </div>
+                            <div v-if="showMT5Dropdown" class="mt5-server-dropdown">
+                                <div v-if="loadingMT5Servers" class="mt5-server-loading">
+                                    <span class="spinner" style="width: 16px; height: 16px;"></span>
+                                    <span>Searching servers...</span>
+                                </div>
+                                <div v-else-if="filteredMT5Servers.length > 0">
+                                    <div v-for="server in filteredMT5Servers" :key="server" class="mt5-server-option" @mousedown.prevent="selectMT5Server(server)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+                                        <span>[[ server ]]</span>
+                                    </div>
+                                </div>
+                                <div v-else class="mt5-server-empty">
+                                    <span>No servers found</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt5-form-group">
+                            <label class="mt5-form-label">Login</label>
+                            <div class="mt5-input-wrapper">
+                                <svg class="mt5-input-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                <input 
+                                    type="text" 
+                                    v-model="mt5Form.login" 
+                                    placeholder="Your MT5 account number" 
+                                    :disabled="mt5Testing" 
+                                    class="mt5-input"
+                                />
+                            </div>
+                        </div>
+                        
+                        <div class="mt5-form-group">
+                            <label class="mt5-form-label">Password</label>
+                            <div class="mt5-input-wrapper">
+                                <svg class="mt5-input-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                <input 
+                                    :type="showMT5Password ? 'text' : 'password'" 
+                                    v-model="mt5Form.password" 
+                                    placeholder="Your MT5 password" 
+                                    :disabled="mt5Testing" 
+                                    @keyup.enter="connectMT5" 
+                                    class="mt5-input"
+                                    style="padding-right: 40px;"
+                                />
+                                <button type="button" @click="showMT5Password = !showMT5Password" class="password-toggle-btn" :disabled="mt5Testing">
+                                    <svg v-if="showMT5Password" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div v-if="mt5TestResult" class="mt5-result-message" :class="{ success: mt5TestResult.success, error: !mt5TestResult.success }">
+                            <svg v-if="mt5TestResult.success" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                            <span>[[ mt5TestResult.message ]]</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Modal Footer -->
+                <div class="channel-modal-footer">
+                    <button class="btn btn-secondary" @click="closeMT5Modal" :disabled="mt5Testing">
+                        [[ mt5SessionValid && account.login ? 'Close' : 'Cancel' ]]
+                    </button>
+                    <button v-if="!mt5SessionValid || !account.login" class="btn btn-primary" @click="connectMT5" :disabled="mt5Testing || !mt5Form.server || !mt5Form.login || !mt5Form.password">
+                        <span v-if="mt5Testing" class="spinner"></span>
+                        <span v-else>Connect</span>
+                    </button>
+                </div>
+            </div>
+        </div>

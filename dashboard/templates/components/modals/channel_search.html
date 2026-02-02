@@ -1,0 +1,144 @@
+<!-- Redesigned Telegram Channel Search Modal -->
+        <div class="confirm-overlay" v-if="showChannelSearchModal" @click.self="closeChannelSearchModal">
+            <div class="channel-modal">
+                <!-- Modal Header -->
+                <div class="channel-modal-header">
+                    <div class="channel-modal-header-left">
+                        <div class="channel-modal-icon">
+                            <img src="/assets/logos/telegram.jpg" alt="Telegram" />
+                        </div>
+                        <div class="channel-modal-title-group">
+                            <h3>Channel Management</h3>
+                            <p>Add and manage your signal sources</p>
+                        </div>
+                    </div>
+                    <button class="channel-modal-close" @click="closeChannelSearchModal" title="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+                
+                <!-- Modal Body -->
+                <div class="channel-modal-body">
+                    <!-- Left Panel: Search & Browse -->
+                    <div class="channel-modal-main">
+                        <div class="channel-search-wrapper">
+                            <div class="channel-search-input-wrapper">
+                                <svg class="channel-search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                <input 
+                                    type="text" 
+                                    v-model="channelSearchQuery" 
+                                    @input="searchChannels" 
+                                    placeholder="Search channels by name or username..." 
+                                    class="channel-search-input"
+                                    :disabled="loadingChannelSearch" 
+                                    autocomplete="off"
+                                    ref="channelSearchInput"
+                                />
+                                <div v-if="loadingChannelSearch" class="channel-search-loading">
+                                    <span class="spinner"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="channel-results-container">
+                            <!-- Loading Skeleton -->
+                            <div v-if="loadingChannelSearch && channelSearchResults.length === 0" class="channel-skeleton-list">
+                                <div v-for="i in 10" :key="'skel-'+i" class="channel-skeleton-item">
+                                    <div class="channel-skeleton-avatar"></div>
+                                    <div class="channel-skeleton-content">
+                                        <div class="channel-skeleton-title"></div>
+                                        <div class="channel-skeleton-subtitle"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Search Results -->
+                            <div v-else-if="channelSearchResults.length > 0" class="channel-results-list">
+                                <div 
+                                    v-for="channel in channelSearchResults" 
+                                    :key="channel.id" 
+                                    class="channel-result-card" 
+                                    :class="{ 'is-added': isChannelAlreadyAdded(channel.id) }" 
+                                >
+                                    <div class="channel-result-avatar">
+                                        <img v-if="channel.has_photo" :src="'/api/telegram/channel/' + channel.id + '/photo'" :alt="channel.title" />
+                                        <span v-else class="channel-result-avatar-text">[[ channel.title.substring(0, 1).toUpperCase() ]]</span>
+                                    </div>
+                                    <div class="channel-result-info">
+                                        <div class="channel-result-title">
+                                            [[ channel.title ]]
+                                            <svg v-if="channel.verified" class="channel-verified-badge" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M8.603 3.799A4.49 4.49 0 0 1 12 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 0 1 3.498 1.307 4.491 4.491 0 0 1 1.307 3.497A4.49 4.49 0 0 1 21.75 12a4.49 4.49 0 0 1-1.549 3.397 4.491 4.491 0 0 1-1.307 3.497 4.491 4.491 0 0 1-3.497 1.307A4.49 4.49 0 0 1 12 21.75a4.49 4.49 0 0 1-3.397-1.549 4.49 4.49 0 0 1-3.498-1.306 4.491 4.491 0 0 1-1.307-3.498A4.49 4.49 0 0 1 2.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 0 1 1.307-3.497 4.49 4.49 0 0 1 3.497-1.307Zm7.007 6.387a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" /></svg>
+                                        </div>
+                                        <div class="channel-result-meta">
+                                            <span class="channel-result-username">@[[ channel.username || channel.id ]]</span>
+                                            <span v-if="channel.participants_count" class="channel-result-separator">•</span>
+                                            <span v-if="channel.participants_count" class="channel-result-members">[[ formatNumberCompact(channel.participants_count) ]] members</span>
+                                        </div>
+                                    </div>
+                                    <div class="channel-result-action">
+                                        <div v-if="isChannelAlreadyAdded(channel.id)" class="channel-added-badge">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                            <span>Added</span>
+                                        </div>
+                                        <button v-else class="channel-add-btn" @click="addChannel(channel)" :disabled="addingChannels">
+                                            <svg v-if="addingChannels" class="spinner" width="14" height="14"></svg>
+                                            <template v-else>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                                <span>Add</span>
+                                            </template>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Empty States -->
+                            <div v-else class="channel-empty-state">
+                                <div class="channel-empty-icon">
+                                    <svg v-if="!channelSearchQuery && !loadingChannelSearch" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                                    <svg v-else-if="channelSearchQuery" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                </div>
+                                <h4 v-if="!channelSearchQuery && !loadingChannelSearch">Start searching</h4>
+                                <p v-if="!channelSearchQuery && !loadingChannelSearch">Type in the search box to find your Telegram channels</p>
+                                <h4 v-else-if="channelSearchQuery">No channels found</h4>
+                                <p v-else-if="channelSearchQuery">Try searching with a different name or username</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Active Channels -->
+                    <div class="channel-modal-sidebar">
+                        <div class="channel-sidebar-header">
+                            <h4>Active Channels</h4>
+                            <div class="channel-count-badge">[[ settings.telegram.signal_channels.length ]]</div>
+                        </div>
+                        <div class="channel-sidebar-content">
+                            <div v-if="settings.telegram.signal_channels.length > 0" class="channel-active-list">
+                                <div v-for="channelId in settings.telegram.signal_channels" :key="'active-' + channelId" class="channel-active-item">
+                                    <div class="channel-active-avatar">
+                                        <img v-if="hasChannelPhoto(channelId)" :src="'/api/telegram/channel/' + channelId + '/photo'" :alt="getChannelName(channelId, 0)" />
+                                        <span v-else class="channel-active-avatar-text">[[ getChannelInitials(channelId, 0) ]]</span>
+                                    </div>
+                                    <div class="channel-active-info">
+                                        <div class="channel-active-name">[[ getChannelName(channelId, 0) ]]</div>
+                                        <div class="channel-active-id">[[ getChannelDisplayId(channelId) ]]</div>
+                                    </div>
+                                    <button class="channel-remove-btn" @click="removeSignalChannelById(channelId)" title="Remove">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div v-else class="channel-sidebar-empty">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                                <p>No channels yet</p>
+                                <span>Add channels to start monitoring signals</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Modal Footer -->
+                <div class="channel-modal-footer">
+                    <button class="btn btn-secondary" @click="closeChannelSearchModal">Done</button>
+                </div>
+            </div>
+        </div>
